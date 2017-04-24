@@ -2,7 +2,8 @@ import os
 import time
 import random
 import importlib
-from environment import TrafficLight
+from environment import TrafficLight, Environment, Car
+
 
 class Simulator(object):
     """Simulates agents in a dynamic smartcab environment.
@@ -27,11 +28,18 @@ class Simulator(object):
         'gray'    : (155, 155, 155)
     }
 
-    def __init__(self, env, update_delay=2.0, display=True):
+    rotation = {
+        Environment.TE: 0,
+        Environment.TW: 180,
+        Environment.TN: 90,
+        Environment.TS: -90
+    }
+    def __init__(self, env, update_delay=1.0, display=True):
         self.env = env
-        self.size = ((env.grid_size[0] + 1) * env.block_size, (env.grid_size[1]+2) * env.block_size)
+        self.block_size = 120
+        self.size = ((env.grid_size[0] + 1) * self.block_size, (env.grid_size[1]+2) * self.block_size)
         self.width, self.height = self.size
-        self.road_width = 44
+        self.road_width = 60
 
         self.bg_color = self.colors['gray']
         self.road_color = self.colors['black']
@@ -59,8 +67,8 @@ class Simulator(object):
                     (self.road_width, self.road_width))
 
                 self.frame_delay = max(1, int(self.update_delay * 1000))  # delay between GUI frames in ms (min: 1)
-                self.agent_sprite_size = (32, 32)
-                self.primary_agent_sprite_size = (42, 42)
+                self.agent_sprite_size = (30, 30)
+
                 self.agent_circle_radius = 20  # radius of circle, when using simple representation
                 self.font = self.pygame.font.Font(None, 20)
                 self.paused = False
@@ -90,29 +98,31 @@ class Simulator(object):
 
             # Boundary
             self.render()
-            self.pygame.display.update()
-            self.pygame.time.delay(1000)
+            self.pygame.display.flip()
+            self.pygame.time.delay(self.frame_delay)
         self.pygame.quit()
 
     def render(self):
         """ This is the GUI render display of the simulation. 
             Supplementary trial data can be found from render_text. """
-        size = (self.env.block_size / 2, self.env.block_size, self.env.grid_size[0] * self.env.block_size ,self.env.grid_size[1] * self.env.block_size)
+
+        size = (self.block_size / 2, self.block_size, self.env.grid_size[0] * self.block_size ,self.env.grid_size[1] * self.block_size)
         self.pygame.draw.rect(self.screen, self.boundary, size, 4)
         # draw vertical road
         for i in xrange(1, self.env.grid_size[0]+1):
-            startX = size[0] + (self.env.block_size * (i-0.5))  # block_size * i - block_size/2
+            startX = size[0] + (self.block_size * (i-0.5))  # self.block_size * i - self.block_size/2
             self.pygame.draw.line(self.screen, self.road_color, (startX, size[1]), (startX, size[1] + size[3]), self.road_width)
             self.pygame.draw.line(self.screen, self.line_color, (startX, size[1]), (startX, size[1] + size[3]), 2)
         # draw horizontal road
         for i in xrange(1, self.env.grid_size[1]+1):
-            startY = size[1] + (self.env.block_size * (i-0.5))
+            startY = size[1] + (self.block_size * (i-0.5))
             self.pygame.draw.line(self.screen, self.road_color, (size[0], startY), (size[0] + size[2], startY), self.road_width)
             self.pygame.draw.line(self.screen, self.line_color, (size[0], startY), (size[0] + size[2], startY), 2)
+
         for x in xrange(1, self.env.grid_size[0] + 1):
-            startX = size[0] + (self.env.block_size * (x - 0.5)) - self.road_width / 2
+            startX = size[0] + (self.block_size * (x - 0.5)) - self.road_width / 2
             for y in xrange(1, self.env.grid_size[1] + 1):
-                startY = size[1] + (self.env.block_size * (y - 0.5)) - self.road_width / 2
+                startY = size[1] + (self.block_size * (y - 0.5)) - self.road_width / 2
                 #traffic light
                 light = self.env.intersections[(x, y)]
                 light.switch()
@@ -128,5 +138,17 @@ class Simulator(object):
                                           (startX + self.road_width, startY), 2)
                     self.pygame.draw.line(self.screen, self.stop_color, (startX, startY + self.road_width),
                                           (startX + self.road_width, startY + self.road_width), 2)
+        """draw cars"""
+        for pos, obj in self.env.roads.iteritems():
+            # Draw agent sprite (image), properly rotated
+            direction, t = obj
+            if type(t) is Car:
+                _sprite = self.pygame.transform.smoothscale(
+                    self.pygame.image.load(os.path.join("images", "car-{}.png".format('red'))),
+                    self.agent_sprite_size)
+                px = self.block_size / 2 + ((pos[0] - 1) * 30)
+                py = self.block_size + ((pos[1] - 1) * 30 )
+                rotated_sprite = self.pygame.transform.rotate(_sprite, self.rotation[direction])
+                self.screen.blit(rotated_sprite, self.pygame.rect.Rect(px,py,self.agent_sprite_size[0], self.agent_sprite_size[1]))
 
 
