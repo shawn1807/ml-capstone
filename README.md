@@ -1,2 +1,5 @@
 # ml-capstone
-Machine Learning Aapstone Project
+Machine Learning Capstone Project
+
+Run for benchmark model
+python benchmark.py
