@@ -4,6 +4,7 @@ import random
 from collections import OrderedDict
 import csv
 
+
 class BenchmarkAgent(TrafficLightControl):
     """ represent benchmark agent"""
 
@@ -29,10 +30,11 @@ class BenchmarkAgent(TrafficLightControl):
         self.last_updated = 0
         self.lightPositions = OrderedDict()
 
+
 def run():
     trials = 10
     cars = [10, 100, 200, 300]
-    period = 10
+    period = 3
     agent = BenchmarkAgent()
     env = Environment(control=agent, grid_size=(8, 6))
     log_file = open("benchmark", 'wb')
