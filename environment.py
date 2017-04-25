@@ -32,6 +32,9 @@ class TrafficLightControl(object):
     def signal(self, t):
         pass
 
+    def reset(self):
+        pass
+
     def register(self, light, position):
         self.lightPositions[position] = light
 
@@ -112,11 +115,22 @@ class Environment(object):
         self.grid_size = grid_size
         self.control = control
         self.bounds = (1, 1, self.grid_size[0] * 4 , self.grid_size[1] * 4)
-        # Road network
         self.grid_size = grid_size  # (columns, rows)
+        self.intersections = None
+        self.roads = None
+        self.t = 1
+        self.reset()
+        self.stall = 0
+        self.totalStall = 0
+
+    def reset(self):
+        self.control.reset()
+        # Road network
         self.intersections = OrderedDict()
         self.roads = OrderedDict()
-        self.t = 0
+        self.t = 1
+        self.stall = 0
+        self.totalStall = 0
         """
         road template :
         X |TS    |TN    |X
@@ -149,11 +163,15 @@ class Environment(object):
 
     def tick(self):
         self.t += 1
+        self.stall = 0
         for pos, t in self.roads.items():
             pos, obj = t
             if type(obj) is Car:
                 obj.step()
+                if obj.stall:
+                    self.stall += 1
         self.control.signal(self.t)
+        self.totalStall += self.stall
 
     def act(self, car, mov):
         way_point = self.roads[car.position][0]
@@ -169,4 +187,6 @@ class Environment(object):
             self.roads[car.position] = (way_point, None)
             self.roads[next] = (direction, car)
             car.position = next
+        else:
+            car.setStall()
 
