@@ -29,12 +29,13 @@ class Simulator(object):
     }
 
     rotation = {
-        Environment.TE: 0,
-        Environment.TW: 180,
-        Environment.TN: 90,
-        Environment.TS: -90
+        ( 1,  0): 0, #East
+        (-1,  0): 180, #West
+        ( 0,  1): -90, #South
+        ( 0, -1): 90 #North
     }
-    def __init__(self, env, update_delay=1.0, display=True):
+
+    def __init__(self, env, update_delay=0.5, display=True):
         self.env = env
         self.block_size = 120
         self.size = ((env.grid_size[0] + 1) * self.block_size, (env.grid_size[1]+2) * self.block_size)
@@ -90,14 +91,9 @@ class Simulator(object):
                 if event.type == self.pygame.QUIT:
                     gameExit = True
 
-            # Reset the screen.
             self.screen.fill(self.bg_color)
-
-            # Draw elements
-            # * Static elements
-
-            # Boundary
             self.render()
+            self.env.tick()
             self.pygame.display.flip()
             self.pygame.time.delay(self.frame_delay)
         self.pygame.quit()
@@ -125,7 +121,6 @@ class Simulator(object):
                 startY = size[1] + (self.block_size * (y - 0.5)) - self.road_width / 2
                 #traffic light
                 light = self.env.intersections[(x, y)]
-                light.switch()
                 square = (startX , startY, self.road_width,self.road_width)
                 self.pygame.draw.rect(self.screen, self.boundary, square) # override background
                 if light.get_open_way() == TrafficLight.NS:
@@ -144,11 +139,11 @@ class Simulator(object):
             direction, t = obj
             if type(t) is Car:
                 _sprite = self.pygame.transform.smoothscale(
-                    self.pygame.image.load(os.path.join("images", "car-{}.png".format('red'))),
+                    self.pygame.image.load(os.path.join("images", "car-{}.png".format(t.color))),
                     self.agent_sprite_size)
                 px = self.block_size / 2 + ((pos[0] - 1) * 30)
-                py = self.block_size + ((pos[1] - 1) * 30 )
-                rotated_sprite = self.pygame.transform.rotate(_sprite, self.rotation[direction])
-                self.screen.blit(rotated_sprite, self.pygame.rect.Rect(px,py,self.agent_sprite_size[0], self.agent_sprite_size[1]))
+                py = self.block_size + ((pos[1] - 1) * 30)
+                rotated_sprite = self.pygame.transform.rotate(_sprite, self.rotation[t.get_heading()])
+                self.screen.blit(rotated_sprite, self.pygame.rect.Rect(px ,py ,self.agent_sprite_size[0], self.agent_sprite_size[1]))
 
 

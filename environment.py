@@ -24,88 +24,149 @@ class TrafficLight(object):
 class TrafficLightControl(object):
 
     def __init__(self):
-        pass
+        self.lightPositions = OrderedDict()
 
     def build(self):
         pass
 
-    def update(self):
+    def signal(self, t):
         pass
 
+    def register(self, light, position):
+        self.lightPositions[position] = light
 
-class Sensor(object):
+    def allow(self, position, heading):
+        """already in intersections"""
+        if self.lightPositions.has_key(position):
+            return True
+        """check next position if it is in the intersections"""
+        pos = (position[0]+heading[0], position[1]+heading[1])
+        if self.lightPositions.has_key(pos):
+            light = self.lightPositions[pos]
+            if light.get_open_way() == TrafficLight.NS:
+                return heading == (0, 1) or heading == (0, -1)
+            else:
+                return heading == (1, 0) or heading == (-1, 0)
+        else:
+            return True
 
-    def __init__(self, env):
+
+class Navigator(object):
+
+    def __init__(self, car, env):
         self.env = env
+        self.car = car
+        self.heading = random.choice(env.roads[car.position][0])
 
-    def sense(self):
-        return {"light": 'red'}
+    def navigate(self):
+        direction, obj = self.env.roads[self.car.position]
+        mov = random.choice(direction)
+        self.heading = mov
+        if not self.env.control.allow(self.car.position, self.heading):
+            self.car.setStall()
+        return mov
 
 
 class Car(object):
-    color_choices = ['cyan', 'red', 'blue', 'green', 'orange', 'magenta', 'yellow']
-    valid_actions = [None, 'forward', 'left', 'right']
+
+    color_choices = ['white', 'cyan', 'red', 'blue', 'green', 'orange', 'magenta', 'yellow']
 
     def __init__(self, env, position):
         self.env = env
         self.position = position
         self.color = random.choice(self.color_choices)
+        self.navigator = Navigator(self, env)
+        self.navigator.heading = random.choice(env.roads[position][0])
+        env.roads[position] = (env.roads[position][0], self)
+        self.stall = False
+        self.mov = (0, 0)
 
-    def update(self):
-        pass
+    def step(self):
+        self.stall = False
+        self.mov = self.navigator.navigate()
+        if self.stall:
+            return
+        self.env.act(self, self.mov)
 
+    def get_heading(self):
+        return self.navigator.heading
 
-class RandomDrivingCar(Car):
-
-    def __init__(self, env):
-        super(RandomDrivingCar, self).__init__(env)
-        self.sensor = Sensor(env)
-
-    def update(self):
-        info = self.sensor.sense()
-        self.waypoint = random.choice(Car.valid_actions[1:])
+    def setStall(self):
+        self.stall = True
 
 
 class Environment(object):
 
     """Refer from 'train smartcab to drive' project."""
-    TN = (0,  1) # Toward North
-    TS = (0, -1) # Toward South
-    TE = (1,  0) # Toward East
-    TW = (-1, 0) # Toward West
-
+    TNW = ((0,  -1), (-1,  0)) # Toward North or West, north is two times important
+    TNE = ((0,  -1), (1,  0)) # Toward North or East, north is two times important
+    TSW = ((0,  1), (-1,  0)) # Toward South or West
+    TSE = ((0,  1), (1,  0)) # Toward South or East
+    TN = ((0,  -1),) # Toward North
+    TS = ((0, 1),) # Toward South
+    TE = ((1,  0),) # Toward East
+    TW = ((-1, 0),) # Toward West
 
     def __init__(self, control=None, verbose=False, grid_size=(8, 6)):
         self.verbose = verbose
         self.grid_size = grid_size
         self.control = control
-        self.bounds = (1, 1, self.grid_size[0] * 4, self.grid_size[1] *4)
+        self.bounds = (1, 1, self.grid_size[0] * 4 , self.grid_size[1] * 4)
         # Road network
         self.grid_size = grid_size  # (columns, rows)
         self.intersections = OrderedDict()
         self.roads = OrderedDict()
+        self.t = 0
         """
-        road template 
-        X |TS    |TN   |X
-        TW|L(TS) |L(TW)|TW
-        TE|L(TE) |L(TN)|TE
-        X |TS    |TN   |X        
+        road template :
+        X |TS    |TN    |X
+        TW|L(TSW)|L(TNW)|TW
+        TE|L(TSE)|L(TNE)|TE
+        X |TS    |TN    |X        
         """
         for i in xrange(1, self.grid_size[1] + 1):
             for j in xrange(1, self.grid_size[0] + 1):
                 light = self.control.build() if self.control is not None else None
-                self.intersections[(j, i)] = light
+                self.intersections[j, i] = light
                 x = (j - 1) * 4
                 y = (i - 1) * 4
                 self.roads[(x + 2, y + 1)] = (self.TS, None)
                 self.roads[(x + 3, y + 1)] = (self.TN, None)
                 self.roads[(x + 1, y + 2)] = (self.TW, None)
-                self.roads[(x + 2, y + 2)] = (self.TS, light)
-                self.roads[(x + 3, y + 2)] = (self.TW, light)
+                self.roads[(x + 2, y + 2)] = (self.TSW, None)
+                self.roads[(x + 3, y + 2)] = (self.TNW, None)
                 self.roads[(x + 4, y + 2)] = (self.TW, None)
                 self.roads[(x + 1, y + 3)] = (self.TE, None)
-                self.roads[(x + 2, y + 3)] = (self.TE, light)
-                self.roads[(x + 3, y + 3)] = (self.TN, light)
+                self.roads[(x + 2, y + 3)] = (self.TSE, None)
+                self.roads[(x + 3, y + 3)] = (self.TNE, None)
                 self.roads[(x + 4, y + 3)] = (self.TE, None)
                 self.roads[(x + 2, y + 4)] = (self.TS, None)
                 self.roads[(x + 3, y + 4)] = (self.TN, None)
+                self.control.register(light, (x + 2, y + 2))
+                self.control.register(light, (x + 3, y + 2))
+                self.control.register(light, (x + 2, y + 3))
+                self.control.register(light, (x + 3, y + 3))
+
+    def tick(self):
+        self.t += 1
+        for pos, t in self.roads.items():
+            pos, obj = t
+            if type(obj) is Car:
+                obj.step()
+        self.control.signal(self.t)
+
+    def act(self, car, mov):
+        way_point = self.roads[car.position][0]
+        next = (car.position[0] + mov[0], car.position[1] + mov[1])
+        """if run into boundary then reset position to other side"""
+        if self.bounds[0] > next[0] or next[0] > self.bounds[2]:
+            next = (abs(next[0] - self.bounds[2]), next[1])
+        elif self.bounds[1] > next[1] or next[1] > self.bounds[3]:
+            next = (next[0], abs(next[1] - self.bounds[3]))
+        direction, obj = self.roads[next]
+        """ only update position when there is no car ahead"""
+        if obj is None:
+            self.roads[car.position] = (way_point, None)
+            self.roads[next] = (direction, car)
+            car.position = next
+
