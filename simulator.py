@@ -1,4 +1,4 @@
-import os
+import os, csv
 import importlib
 from environment import TrafficLight, Environment, Car
 os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (0, 30)
@@ -33,8 +33,11 @@ class Simulator(object):
         ( 0, -1): 90 #North
     }
 
-    def __init__(self, env, update_delay=0.5, display=True,logger=None):
-        self.logger = logger
+    def __init__(self, env, update_delay=0.5, display=True, filename="data.csv"):
+        self.datafile = filename
+        log_file = open(filename, 'wb')
+        self.logger = csv.DictWriter(log_file, fieldnames=["trial", "cars", "total_stall", "average", "score"])
+        self.logger.writeheader()
         self.trial = 0
         self.env = env
         self.block_size = 120
@@ -81,7 +84,7 @@ class Simulator(object):
                 print "Simulator.__init__(): Error initializing GUI objects; display disabled.\n{}: {}".format(
                     e.__class__.__name__, e)
 
-    def run(self,trial, period):
+    def run(self, trial, period):
         self.trial = trial
         gameExit = False
         clock = self.pygame.time.Clock()

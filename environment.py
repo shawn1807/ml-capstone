@@ -116,15 +116,7 @@ class Environment(object):
         self.control = control
         self.bounds = (1, 1, self.grid_size[0] * 4 , self.grid_size[1] * 4)
         self.grid_size = grid_size  # (columns, rows)
-        self.intersections = None
-        self.roads = None
-        self.t = 1
-        self.reset()
-        self.stall = 0
-        self.totalStall = 0
 
-    def reset(self):
-        self.control.reset()
         # Road network
         self.intersections = OrderedDict()
         self.roads = OrderedDict()
@@ -160,6 +152,15 @@ class Environment(object):
                 self.control.register(light, (x + 3, y + 2))
                 self.control.register(light, (x + 2, y + 3))
                 self.control.register(light, (x + 3, y + 3))
+
+    def reset(self):
+        self.t = 1
+        self.stall = 0
+        self.totalStall = 0
+        self.control.reset()
+        for pos in self.roads.keys():
+            d, obj = self.roads[pos]
+            self.roads[pos] = (d,None)
 
     def tick(self):
         self.t += 1
