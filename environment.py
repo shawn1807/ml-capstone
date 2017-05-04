@@ -25,11 +25,18 @@ class TrafficLightControl(object):
 
     def __init__(self):
         self.lightPositions = OrderedDict()
+        self.env = None
 
     def build(self):
         pass
 
-    def signal(self, t):
+    def set_env(self, env):
+        self.env = env
+
+    def signal(self):
+        pass
+
+    def after_signal(self):
         pass
 
     def reset(self):
@@ -114,6 +121,7 @@ class Environment(object):
         self.verbose = verbose
         self.grid_size = grid_size
         self.control = control
+        self.control.set_env(self)
         self.bounds = (1, 1, self.grid_size[0] * 4 , self.grid_size[1] * 4)
         self.grid_size = grid_size  # (columns, rows)
 
@@ -165,14 +173,15 @@ class Environment(object):
     def tick(self):
         self.t += 1
         self.stall = 0
+        self.control.signal()
         for pos, t in self.roads.items():
             pos, obj = t
             if type(obj) is Car:
                 obj.step()
                 if obj.stall:
                     self.stall += 1
-        self.control.signal(self.t)
         self.totalStall += self.stall
+        self.control.after_signal()
 
     def act(self, car, mov):
         way_point = self.roads[car.position][0]

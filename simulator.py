@@ -175,7 +175,7 @@ class Simulator(object):
         # * Overlays
         self.font50 = self.pygame.font.Font(None, 50)
         self.screen.blit(
-            self.font50.render("Training Trial %s (%s cars)" % (self.trial, ncars), True, self.colors['black'], self.bg_color),
+            self.font50.render("Trial %s (%s cars)" % (self.trial, ncars), True, self.colors['black'], self.bg_color),
             (10, 10))
         self.font = self.pygame.font.Font(None, 30)
         self.screen.blit(self.font.render("Number of Car Stall: %s" % self.env.stall, True, self.colors['dgreen'], self.bg_color),
