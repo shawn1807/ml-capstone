@@ -3,6 +3,7 @@ import importlib
 from environment import TrafficLight, Environment, Car
 os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (0, 30)
 
+
 class Simulator(object):
     """Simulates agents in a dynamic smartcab environment.
 
@@ -33,7 +34,8 @@ class Simulator(object):
         ( 0, -1): 90 #North
     }
 
-    def __init__(self, env, update_delay=0.5, display=True, filename="data.csv"):
+    def __init__(self, env, update_delay=0.5, display=True, title="", filename="data.csv"):
+        self.title = title
         self.datafile = filename
         log_file = open(filename, 'wb')
         self.logger = csv.DictWriter(log_file, fieldnames=["trial", "cars", "total_stall", "average", "score"])
@@ -175,7 +177,7 @@ class Simulator(object):
         # * Overlays
         self.font50 = self.pygame.font.Font(None, 50)
         self.screen.blit(
-            self.font50.render("Trial %s (%s cars)" % (self.trial, ncars), True, self.colors['black'], self.bg_color),
+            self.font50.render("%s: Trial %s (%s cars)" % (self.title, self.trial, ncars), True, self.colors['black'], self.bg_color),
             (10, 10))
         self.font = self.pygame.font.Font(None, 30)
         self.screen.blit(self.font.render("Number of Car Stall: %s" % self.env.stall, True, self.colors['dgreen'], self.bg_color),

@@ -14,7 +14,7 @@ class BenchmarkAgent(TrafficLightControl):
         self.last_updated = 0
         self.lightPositions = OrderedDict()
 
-    def build(self):
+    def build_light(self):
         tl = TrafficLight()
         self.lights.append(tl)
         return tl
@@ -34,8 +34,8 @@ def run():
     cars = [50, 100, 150, 200, 250, 300]
     period = 0.5
     agent = BenchmarkAgent()
-    env = Environment(control=agent, grid_size=(8, 6))
-    simulator = Simulator(env, update_delay=0.1, filename="benchmark.csv")
+    env = Environment(control=agent, grid_size=(8, 4))
+    simulator = Simulator(env, update_delay=0.1, title="Benchmark", filename="benchmark.csv")
     for t in range(1, trials+1):
         for ncar in cars:
             env.reset()
@@ -52,16 +52,7 @@ def run():
     #simulator.pause()
     #simulator.plot()
     simulator.quit()
-import pandas
-import matplotlib.pyplot as plt
 
-def plot(datafile):
-    plt.figure()
-    df = pandas.read_csv(datafile)
-    df = df[["score","average","cars", "total_stall"]].groupby("cars")
-    print df.describe()
-    #df.plot.box()
-    #plt.show()
 
 
 

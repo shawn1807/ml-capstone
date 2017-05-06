@@ -27,7 +27,10 @@ class TrafficLightControl(object):
         self.lightPositions = OrderedDict()
         self.env = None
 
-    def build(self):
+    def build_light(self):
+        pass
+
+    def setup(self):
         pass
 
     def set_env(self, env):
@@ -140,7 +143,7 @@ class Environment(object):
         """
         for i in xrange(1, self.grid_size[1] + 1):
             for j in xrange(1, self.grid_size[0] + 1):
-                light = self.control.build() if self.control is not None else None
+                light = self.control.build_light() if self.control is not None else None
                 self.intersections[j, i] = light
                 x = (j - 1) * 4
                 y = (i - 1) * 4
@@ -160,6 +163,7 @@ class Environment(object):
                 self.control.register(light, (x + 3, y + 2))
                 self.control.register(light, (x + 2, y + 3))
                 self.control.register(light, (x + 3, y + 3))
+        self.control.setup()
 
     def reset(self):
         self.t = 1
@@ -168,7 +172,7 @@ class Environment(object):
         self.control.reset()
         for pos in self.roads.keys():
             d, obj = self.roads[pos]
-            self.roads[pos] = (d,None)
+            self.roads[pos] = (d, None)
 
     def tick(self):
         self.t += 1
