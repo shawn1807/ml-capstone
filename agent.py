@@ -4,6 +4,61 @@ import random, numpy as np
 from collections import OrderedDict
 
 
+class NeuralNetwork(object):
+
+    def __init__(self, epsilon=1.0, alpha=0.5):
+        self.epsilon = epsilon
+        self.alpha = alpha
+
+    def add_hidden_layer(self, number_of_neurons):
+        if self.first_layer is None:
+            self.first_layer = Layer(None, number_of_neurons)
+        else:
+            self.first_layer.extend(number_of_neurons)
+
+    def react(self, x_array):
+        return self.first_layer.forward(np.array(x_array))
+
+
+class Layer(object):
+
+    def __init__(self, prior, number_of_neurons):
+        self.prior = prior
+        self.next = None
+        self.neurons = None
+        if self.prior is not None:
+            self.prior.next = self
+            for n in number_of_neurons:
+                self.neurons.append(Neuron(len(self.prior.neurons)))
+
+    def extend(self, number_of_neurons):
+        if self.next is None:
+            self.next = Layer(self, number_of_neurons)
+        else:
+            self.next.attach(number_of_neurons)
+
+    def forward(self, x_in):
+        output = np.array([n.evaluate(x_in) for n in self.neurons])
+        if self.next is not None:
+            return self.next.forward(output)
+        else:
+            return output
+
+    def backward(self, loss):
+        pass
+
+
+class Neuron(object):
+
+    def __init__(self, n_in, bias):
+        self.weights = np.random.randn(n_in)
+        self.bias = bias
+
+    def evaluate(self, x):
+        axon = np.sum(self.weights.dot(x)) + self.bias
+        return axon
+
+
 class QLearningNetworkAgent(TrafficLightControl):
     """ represent Q learning network agent"""
 
@@ -15,8 +70,8 @@ class QLearningNetworkAgent(TrafficLightControl):
         self.learning = learning
         self.epsilon = epsilon
         self.alpha = alpha
-        self.weights_h1 = None
-        self.weights_h2 = None
+        self.neural_network = None
+
 
     def build_light(self):
         tl = TrafficLight()
@@ -24,8 +79,9 @@ class QLearningNetworkAgent(TrafficLightControl):
         return tl
 
     def setup(self):
-        self.weights_h1 = np.random.randn(len(self.env.roads)+1)
-        self.weights_h2 = np.random.randn(len(self.lights))
+        self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
+        self.neural_network.add_hidden_layer(len(self.lights))
+
 
     def signal(self):
         if self.env.t % self.period == 0:

@@ -45,8 +45,9 @@ class TrafficLightControl(object):
     def reset(self):
         pass
 
-    def register(self, light, position):
-        self.lightPositions[position] = light
+    def register(self, light, positions):
+        for position in positions:
+            self.lightPositions[position] = light
 
     def allow(self, position, heading):
         """already in intersections"""
@@ -159,10 +160,7 @@ class Environment(object):
                 self.roads[(x + 4, y + 3)] = (self.TE, None)
                 self.roads[(x + 2, y + 4)] = (self.TS, None)
                 self.roads[(x + 3, y + 4)] = (self.TN, None)
-                self.control.register(light, (x + 2, y + 2))
-                self.control.register(light, (x + 3, y + 2))
-                self.control.register(light, (x + 2, y + 3))
-                self.control.register(light, (x + 3, y + 3))
+                self.control.register(light, [(x + 2, y + 2),(x + 3, y + 2), (x + 2, y + 3), (x + 3, y + 3)])
         self.control.setup()
 
     def reset(self):
