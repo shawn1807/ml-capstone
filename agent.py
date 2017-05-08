@@ -10,31 +10,52 @@ def sigmoid(x):
 
 class NeuralNetwork(object):
 
-    def __init__(self, epsilon=1.0, alpha=0.5):
+    def __init__(self, learning=False, epsilon=1.0, alpha=0.5):
+        self.learning = learning
         self.epsilon = epsilon
         self.alpha = alpha
-        self.first_layer = None
+        self.hidden_layers = None
         self.output_layer = None
-
-    def add_hidden_layer(self, number_of_neurons, activation=sigmoid):
-        if self.first_layer is None:
-            self.first_layer = Layer(None, number_of_neurons, activation)
+        self.input_layer = None
+        
+    def set_input_layer(self, input_size):
+        self.input_layer = InputLayer(input_size)
+    
+    def add_hidden_layer(self, number_of_neurons):
+        if self.hidden_layers is None:
+            self.hidden_layers = Layer(None, number_of_neurons)
         else:
-            self.first_layer.extend(Layer(None, number_of_neurons, activation))
+            self.hidden_layers.extend(Layer(None, number_of_neurons))
 
-    def set_output_layer(self, number_of_neurons, activation=sigmoid):
-        self.output_layer = Layer(None, number_of_neurons,activation)
+    def set_output_layer(self, number_of_neurons):
+        self.output_layer = Layer(None, number_of_neurons)
 
-    def react(self, x_array):
-        return self.output_layer.forward_feed(self.first_layer.forward_feed(np.array(x_array)))
+    def build(self):
+        # connect input, hidden, output layers
+        self.input_layer.extend(self.hidden_layers)
+        self.hidden_layers.extend(self.output_layer)
+        # initial each layers
+        layer = self.input_layer
+        layer.init()
+        while layer.next is not None:
+            layer = layer.next
+            layer.build()
+
+    def signal(self, x_array):
+        output = self.input_layer.forward_feed(np.array(x_array))
+        if self.learning:
+            self.output_layer.backprop()
+        return output
 
 
 class Layer(object):
 
-    def __init__(self, neurons):
+    def __init__(self, size):
         self.prior = None
         self.next = None
-        self.neurons = neurons
+        self.neurons = []
+        self.size = size
+        self.built = False
 
     def extend(self, layer):
         if self.next is None:
@@ -42,6 +63,13 @@ class Layer(object):
             layer.prior = self
         else:
             self.next.extend(layer)
+
+    def build(self):
+        if not self.built:
+            if self.prior is not None:
+                for n in range(0, self.size):
+                    self.neurons.append(Neuron(len(self.prior.size)))
+            self.built = True
 
     def forward_feed(self, x_in):
         output = np.array([n.evaluate(x_in) for n in self.neurons])
@@ -51,19 +79,37 @@ class Layer(object):
             return output
 
     def backprop(self, loss):
-        pass
+        if self.prior is not None:
+            self.prior.backprop()
 
 
+class InputLayer(Layer):
+
+    def __init__(self, input_size):
+        self.input_size = input_size
+        self.next = None
+        self.built = False
+
+    def build(self):
+        if not self.built:
+            if self.prior is not None:
+                for n in range(0, self.size):
+                    self.neurons.append(Neuron(len(self.input_size)))
+            self.built = True
+
+    def forward_feed(self, x_in):
+        return self.next.forward_feed(x_in)
+
+            
 class Neuron(object):
 
-    def __init__(self, n_in, bias, activation):
-        self.activation = activation
+    def __init__(self, n_in, bias):
         self.weights = np.random.randn(n_in)
         self.bias = bias
 
     def evaluate(self, x):
         axon = np.sum(self.weights.dot(x)) + self.bias
-        return self.activation(axon)
+        return sigmoid(axon)
 
 
 class QLearningNetworkAgent(TrafficLightControl):
@@ -86,6 +132,7 @@ class QLearningNetworkAgent(TrafficLightControl):
 
     def setup(self):
         self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
+        self.neural_network.set_input_layer(len(self.env.roads))
         self.neural_network.add_hidden_layer(len(self.lights))
         self.neural_network.set_output_layer(len(self.lights))
 
@@ -93,7 +140,7 @@ class QLearningNetworkAgent(TrafficLightControl):
         if self.env.t % self.period == 0:
             x = np.array([0 if o is None else 1 for p, o in self.env.roads.values()])
             x = np.append(x, [1])
-            output = self.neural_network.react(x)
+            output = self.neural_network.signal(x)
             print output
             if self.learning:
                 for l in self.lights:
@@ -103,14 +150,13 @@ class QLearningNetworkAgent(TrafficLightControl):
 
     def after_signal(self):
         if self.learning:
-            self.neural_network.
+            pass
 
     def reset(self):
         pass
 
     def allow(self, position, heading):
-        allowed = super(QLearningNetworkAgent, self).allow(position, heading)
-        return allowed
+        return super(QLearningNetworkAgent, self).allow(position, heading)
 
 
 def run():
