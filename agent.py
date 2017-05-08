@@ -4,59 +4,66 @@ import random, numpy as np
 from collections import OrderedDict
 
 
+def sigmoid(x):
+    return 1.0 / (1.0 + np.exp(-x))
+
+
 class NeuralNetwork(object):
 
     def __init__(self, epsilon=1.0, alpha=0.5):
         self.epsilon = epsilon
         self.alpha = alpha
+        self.first_layer = None
+        self.output_layer = None
 
-    def add_hidden_layer(self, number_of_neurons):
+    def add_hidden_layer(self, number_of_neurons, activation=sigmoid):
         if self.first_layer is None:
-            self.first_layer = Layer(None, number_of_neurons)
+            self.first_layer = Layer(None, number_of_neurons, activation)
         else:
-            self.first_layer.extend(number_of_neurons)
+            self.first_layer.extend(Layer(None, number_of_neurons, activation))
+
+    def set_output_layer(self, number_of_neurons, activation=sigmoid):
+        self.output_layer = Layer(None, number_of_neurons,activation)
 
     def react(self, x_array):
-        return self.first_layer.forward(np.array(x_array))
+        return self.output_layer.forward_feed(self.first_layer.forward_feed(np.array(x_array)))
 
 
 class Layer(object):
 
-    def __init__(self, prior, number_of_neurons):
-        self.prior = prior
+    def __init__(self, neurons):
+        self.prior = None
         self.next = None
-        self.neurons = None
-        if self.prior is not None:
-            self.prior.next = self
-            for n in number_of_neurons:
-                self.neurons.append(Neuron(len(self.prior.neurons)))
+        self.neurons = neurons
 
-    def extend(self, number_of_neurons):
+    def extend(self, layer):
         if self.next is None:
-            self.next = Layer(self, number_of_neurons)
+            self.next = layer
+            layer.prior = self
         else:
-            self.next.attach(number_of_neurons)
+            self.next.extend(layer)
 
-    def forward(self, x_in):
+    def forward_feed(self, x_in):
         output = np.array([n.evaluate(x_in) for n in self.neurons])
         if self.next is not None:
-            return self.next.forward(output)
+            return self.next.forward_feed(output)
         else:
             return output
 
-    def backward(self, loss):
+    def backprop(self, loss):
         pass
 
 
 class Neuron(object):
 
-    def __init__(self, n_in, bias):
+    def __init__(self, n_in, bias, activation):
+        self.activation = activation
         self.weights = np.random.randn(n_in)
         self.bias = bias
 
     def evaluate(self, x):
         axon = np.sum(self.weights.dot(x)) + self.bias
-        return axon
+        return self.activation(axon)
 
 
 class QLearningNetworkAgent(TrafficLightControl):
@@ -72,7 +79,6 @@ class QLearningNetworkAgent(TrafficLightControl):
         self.alpha = alpha
         self.neural_network = None
 
-
     def build_light(self):
         tl = TrafficLight()
         self.lights.append(tl)
@@ -81,13 +87,14 @@ class QLearningNetworkAgent(TrafficLightControl):
     def setup(self):
         self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
         self.neural_network.add_hidden_layer(len(self.lights))
-
+        self.neural_network.set_output_layer(len(self.lights))
 
     def signal(self):
         if self.env.t % self.period == 0:
-            x = np.array([0 if o is None else 1 for p, o in self.env.roads.values() ])
+            x = np.array([0 if o is None else 1 for p, o in self.env.roads.values()])
             x = np.append(x, [1])
-            print self.weights_h1.dot(x)
+            output = self.neural_network.react(x)
+            print output
             if self.learning:
                 for l in self.lights:
                     l.switch()
@@ -95,7 +102,8 @@ class QLearningNetworkAgent(TrafficLightControl):
                 pass
 
     def after_signal(self):
-        print "after_signal"
+        if self.learning:
+            self.neural_network.
 
     def reset(self):
         pass
