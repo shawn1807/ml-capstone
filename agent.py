@@ -72,7 +72,7 @@ class Layer(object):
             self.built = True
 
     def forward_feed(self, x_in):
-        output = np.array([n.evaluate(x_in) for n in self.neurons])
+        output = np.array([n.activate(x_in) for n in self.neurons])
         if self.next is not None:
             return self.next.forward_feed(output)
         else:
@@ -106,10 +106,19 @@ class Neuron(object):
     def __init__(self, n_in, bias):
         self.weights = np.random.randn(n_in)
         self.bias = bias
+        self.cached_x = None
+        self.cached_y = None
 
-    def evaluate(self, x):
+    def activate(self, x):
+        self.cached_x = x
         axon = np.sum(self.weights.dot(x)) + self.bias
-        return sigmoid(axon)
+        self.cached_y = sigmoid(axon)
+        return self.cached_y
+
+    def adjust(self):
+        gradient = (1-self.cached_y) * self.cached_y
+        dx = self.cached_x * gradient
+        dw = self.weights * gradient
 
 
 class QLearningNetworkAgent(TrafficLightControl):
