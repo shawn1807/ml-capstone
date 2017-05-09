@@ -23,12 +23,12 @@ class NeuralNetwork(object):
     
     def add_hidden_layer(self, number_of_neurons):
         if self.hidden_layers is None:
-            self.hidden_layers = Layer(None, number_of_neurons)
+            self.hidden_layers = Layer(number_of_neurons)
         else:
-            self.hidden_layers.extend(Layer(None, number_of_neurons))
+            self.hidden_layers.extend(Layer(number_of_neurons))
 
     def set_output_layer(self, number_of_neurons):
-        self.output_layer = Layer(None, number_of_neurons)
+        self.output_layer = Layer(number_of_neurons)
 
     def build(self):
         # connect input, hidden, output layers
@@ -36,16 +36,17 @@ class NeuralNetwork(object):
         self.hidden_layers.extend(self.output_layer)
         # initial each layers
         layer = self.input_layer
-        layer.init()
+        layer.build()
         while layer.next is not None:
             layer = layer.next
             layer.build()
 
     def signal(self, x_array):
         output = self.input_layer.forward_feed(np.array(x_array))
-        if self.learning:
-            self.output_layer.backprop()
         return output
+
+    def back_propagate(self, errors):
+        self.output_layer.back_propagate(errors)
 
 
 class Layer(object):
@@ -68,7 +69,7 @@ class Layer(object):
         if not self.built:
             if self.prior is not None:
                 for n in range(0, self.size):
-                    self.neurons.append(Neuron(len(self.prior.size)))
+                    self.neurons.append(Neuron(self.prior.size, 1))
             self.built = True
 
     def forward_feed(self, x_in):
@@ -78,47 +79,57 @@ class Layer(object):
         else:
             return output
 
-    def backprop(self, loss):
+    def back_propagate(self, errors):
+        # propagate error to each neuron
+        for i in range(0, len(errors)):
+            self.neurons[i].propagate_error(errors[i])
+        # calculate prior layer error
         if self.prior is not None:
-            self.prior.backprop()
+            prior_errors = np.array([np.sum(n.weights * n.error_term) for n in self.neurons]).transpose()
+            self.prior.back_propagate(prior_errors)
 
 
 class InputLayer(Layer):
 
     def __init__(self, input_size):
-        self.input_size = input_size
+        self.size = input_size
         self.next = None
         self.built = False
 
     def build(self):
-        if not self.built:
-            if self.prior is not None:
-                for n in range(0, self.size):
-                    self.neurons.append(Neuron(len(self.input_size)))
-            self.built = True
+        pass
 
     def forward_feed(self, x_in):
         return self.next.forward_feed(x_in)
 
-            
+    def back_propagate(self, errors):
+        pass
+
+
 class Neuron(object):
 
     def __init__(self, n_in, bias):
         self.weights = np.random.randn(n_in)
         self.bias = bias
-        self.cached_x = None
-        self.cached_y = None
+        self.input = None
+        self.output = None
+        self.delta = np.zeros(n_in)
+        self.batch = 0
+        self.error_term = 0
 
     def activate(self, x):
-        self.cached_x = x
+        self.input = x
         axon = np.sum(self.weights.dot(x)) + self.bias
-        self.cached_y = sigmoid(axon)
-        return self.cached_y
+        self.output = sigmoid(axon)
+        return self.output
 
-    def adjust(self):
-        gradient = (1-self.cached_y) * self.cached_y
-        dx = self.cached_x * gradient
-        dw = self.weights * gradient
+    def propagate_error(self, err):
+        self.error_term = err * (1-self.output) * self.output
+        self.delta += self.x * self.error_term
+        self.batch += 1
+
+    def update_weights(self, learning_rate):
+        self.weights += learning_rate * self.delta / self.batch
 
 
 class QLearningNetworkAgent(TrafficLightControl):
@@ -144,11 +155,11 @@ class QLearningNetworkAgent(TrafficLightControl):
         self.neural_network.set_input_layer(len(self.env.roads))
         self.neural_network.add_hidden_layer(len(self.lights))
         self.neural_network.set_output_layer(len(self.lights))
+        self.neural_network.build()
 
     def signal(self):
         if self.env.t % self.period == 0:
             x = np.array([0 if o is None else 1 for p, o in self.env.roads.values()])
-            x = np.append(x, [1])
             output = self.neural_network.signal(x)
             print output
             if self.learning:
