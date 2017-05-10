@@ -73,6 +73,7 @@ class Layer(object):
             self.built = True
 
     def forward_feed(self, x_in):
+        print self
         output = np.array([n.activate(x_in) for n in self.neurons])
         if self.next is not None:
             return self.next.forward_feed(output)
@@ -86,7 +87,16 @@ class Layer(object):
         # calculate prior layer error
         if self.prior is not None:
             prior_errors = np.array([np.sum(n.weights * n.error_term) for n in self.neurons]).transpose()
+            print prior_errors
             self.prior.back_propagate(prior_errors)
+        self.update()
+
+    def update(self):
+        for n in self.neurons:
+            n.update(1)
+
+    def __str__(self):
+        return "Layer(%s)" % ([str(n) for n in self.neurons])
 
 
 class InputLayer(Layer):
@@ -125,12 +135,26 @@ class Neuron(object):
 
     def propagate_error(self, err):
         self.error_term = err * (1-self.output) * self.output
-        self.delta += self.x * self.error_term
+        self.delta += self.input * self.error_term
         self.batch += 1
 
-    def update_weights(self, learning_rate):
+    def update(self, learning_rate):
         self.weights += learning_rate * self.delta / self.batch
 
+    def __str__(self):
+        return "Neuron(%s, %s)" % (self.weights,self.bias)
+
+def test():
+    network = NeuralNetwork()
+    network.set_input_layer(5)
+    network.add_hidden_layer(4)
+    network.set_output_layer(6)
+    network.build()
+    output = network.signal(np.array([1,2,3,4,5]))
+    print output
+    network.back_propagate([2,3,4,1,1,1])
+    output = network.signal(np.array([1, 2, 3, 4, 5]))
+    print output
 
 class QLearningNetworkAgent(TrafficLightControl):
     """ represent Q learning network agent"""
@@ -204,4 +228,5 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    #run()
+    test()
