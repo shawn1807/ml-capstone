@@ -3,7 +3,7 @@ from simulator import Simulator
 import random, numpy as np
 from collections import OrderedDict
 import logging
-logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.DEBUG)
+logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def sigmoid(x):
@@ -199,6 +199,7 @@ class NeuronTrafficLight(TrafficLight):
     def __init__(self, open_way=None):
         super(NeuronTrafficLight, self).__init__(open_way)
         self.neuron = None
+        self.score = 0
 
     def switch(self):
         """if neuron output is greater than 0.5 then opens North-South way"""
@@ -208,11 +209,11 @@ class NeuronTrafficLight(TrafficLight):
             self.open_way = self.NS
 
 
-class QLearningNetworkAgent(TrafficLightControl):
+class NeuralNetworkAgent(TrafficLightControl):
     """ represent Q learning network agent"""
 
     def __init__(self, period=2, learning=False, epsilon=1.0, alpha=0.5):
-        super(QLearningNetworkAgent, self).__init__()
+        super(NeuralNetworkAgent, self).__init__()
         self.period = period
         self.lights = []
         self.lightPositions = OrderedDict()
@@ -220,6 +221,7 @@ class QLearningNetworkAgent(TrafficLightControl):
         self.epsilon = epsilon
         self.alpha = alpha
         self.neural_network = None
+        self.input_x = None
 
     def build_light(self):
         tl = NeuronTrafficLight()
@@ -237,30 +239,44 @@ class QLearningNetworkAgent(TrafficLightControl):
 
     def signal(self):
         if self.env.t % self.period == 0:
-            x = np.array([0 if o is None else 1 for p, o in self.env.roads.values()])
-            output = self.neural_network.signal(x)
-            if self.learning:
-                for l in self.lights:
-                    l.switch()
-            else:
-                pass
+            self.input_x = np.array([0 if o is None else 1 for p, o in self.env.roads.values()])
+            self.neural_network.signal(self.input_x)
+            for l in self.lights:
+                l.switch()
 
     def after_signal(self):
-        if self.learning:
-            self.neural_network.back_propagate([0.5 if l.open_way == "NS" else  -0.5 for l in self.lights])
+        if self.env.t % self.period == 0 and self.learning:
+            self.neural_network.back_propagate([l.score for l in self.lights])
+            for l in self.lights:
+                l.score = 0
 
     def reset(self):
         pass
 
     def allow(self, position, heading):
-        return super(QLearningNetworkAgent, self).allow(position, heading)
+        """already in intersections"""
+        if self.lightPositions.has_key(position):
+            return True
+        """check next position if it is in the intersections"""
+        pos = (position[0] + heading[0], position[1] + heading[1])
+        if self.lightPositions.has_key(pos):
+            light = self.lightPositions[pos]
+            if light.get_open_way() == TrafficLight.NS:
+                allowPassing = heading == (0, 1) or heading == (0, -1)
+                light.score += 1 if allowPassing else -1
+            else:
+                allowPassing = heading == (1, 0) or heading == (-1, 0)
+                light.score += -1 if allowPassing else 1
+            return allowPassing
+        else:
+            return True
 
 
 def run():
     trials = 100
     cars = [10, 50, 150, 200, 250, 300]
     period = 0.5
-    agent = QLearningNetworkAgent(learning=True)
+    agent = NeuralNetworkAgent(learning=True)
     env = Environment(control=agent, grid_size=(8, 4))
     simulator = Simulator(env, update_delay=0.1, filename="agent.csv")
     simulator.title = "Training Learning Agent"
