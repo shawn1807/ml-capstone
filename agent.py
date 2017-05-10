@@ -2,7 +2,9 @@ from environment import Environment, TrafficLightControl, TrafficLight, Car
 from simulator import Simulator
 import random, numpy as np
 from collections import OrderedDict
-
+import logging
+logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 def sigmoid(x):
     return 1.0 / (1.0 + np.exp(-x))
@@ -17,18 +19,18 @@ class NeuralNetwork(object):
         self.hidden_layers = None
         self.output_layer = None
         self.input_layer = None
-        
+
     def set_input_layer(self, input_size):
-        self.input_layer = InputLayer(input_size)
+        self.input_layer = InputLayer(self, input_size)
     
     def add_hidden_layer(self, number_of_neurons):
         if self.hidden_layers is None:
-            self.hidden_layers = Layer(number_of_neurons)
+            self.hidden_layers = Layer(self, "Hidden Layer", number_of_neurons)
         else:
-            self.hidden_layers.extend(Layer(number_of_neurons))
+            self.hidden_layers.extend(Layer(self, "Hidden Layer", number_of_neurons))
 
     def set_output_layer(self, number_of_neurons):
-        self.output_layer = Layer(number_of_neurons)
+        self.output_layer = OutputLayer(self, "Output Layer", number_of_neurons)
 
     def build(self):
         # connect input, hidden, output layers
@@ -40,6 +42,7 @@ class NeuralNetwork(object):
         while layer.next is not None:
             layer = layer.next
             layer.build()
+        logger.debug("Neural network built [%s]" % self)
 
     def signal(self, x_array):
         output = self.input_layer.forward_feed(np.array(x_array))
@@ -47,21 +50,30 @@ class NeuralNetwork(object):
 
     def back_propagate(self, errors):
         self.output_layer.back_propagate(errors)
+        for l in self.hidden_layers:
+            l.update()
+
+    def __str__(self):
+        return "(learning rate:%s) %s" % (self.alpha, [str(l) for l in self.input_layer])
 
 
 class Layer(object):
 
-    def __init__(self, size):
+    def __init__(self, network, name, size):
+        self.network = network
         self.prior = None
+        self.name = name
         self.next = None
         self.neurons = []
         self.size = size
         self.built = False
+        self.index = 0
 
     def extend(self, layer):
         if self.next is None:
             self.next = layer
             layer.prior = self
+            layer.index = self.index + 1
         else:
             self.next.extend(layer)
 
@@ -69,51 +81,77 @@ class Layer(object):
         if not self.built:
             if self.prior is not None:
                 for n in range(0, self.size):
-                    self.neurons.append(Neuron(self.prior.size, 1))
+                    self.neurons.append(Neuron(self.prior.size, np.random.random()))
             self.built = True
 
     def forward_feed(self, x_in):
-        print self
+        if logging.getLogger().getEffectiveLevel() == logging.DEBUG:
+            logger.debug("Input: %s" % x_in)
+            logger.debug("Neurons: %s" % [str(n) for n in self.neurons])
         output = np.array([n.activate(x_in) for n in self.neurons])
+        if logging.getLogger().getEffectiveLevel() == logging.DEBUG:
+            logger.debug("Output: %s" % output)
         if self.next is not None:
             return self.next.forward_feed(output)
         else:
             return output
 
     def back_propagate(self, errors):
+        if logging.getLogger().getEffectiveLevel() == logging.DEBUG:
+            logger.debug("back_propagate errors: %s" % errors)
+            logger.debug("Neurons: %s" % [str(n) for n in self.neurons])
         # propagate error to each neuron
         for i in range(0, len(errors)):
             self.neurons[i].propagate_error(errors[i])
         # calculate prior layer error
         if self.prior is not None:
-            prior_errors = np.array([np.sum(n.weights * n.error_term) for n in self.neurons]).transpose()
-            print prior_errors
+            prior_errors = np.sum(np.array([n.weights * n.error_term for n in self.neurons]).transpose(), axis=1)
             self.prior.back_propagate(prior_errors)
-        self.update()
 
     def update(self):
         for n in self.neurons:
-            n.update(1)
+            n.update(self.network.alpha)
+        if logging.getLogger().getEffectiveLevel() == logging.DEBUG:
+            logger.debug("Updated Neurons: %s" % [str(n) for n in self.neurons])
 
     def __str__(self):
-        return "Layer(%s)" % ([str(n) for n in self.neurons])
+        return "%s:%s(size:%s, %s)" % (self.name, self.index, self.size, [str(n) for n in self.neurons])
+
+    def __iter__(self):
+        layer = self
+        while layer is not None:
+            yield layer
+            layer = layer.next
 
 
 class InputLayer(Layer):
 
-    def __init__(self, input_size):
+    def __init__(self, network, input_size):
+        self.network = network
         self.size = input_size
         self.next = None
         self.built = False
+        self.name = "Input Layer"
+        self.index = 0
 
     def build(self):
         pass
 
     def forward_feed(self, x_in):
+        """Input layer doesn't do anything, pass input to next layer"""
         return self.next.forward_feed(x_in)
 
     def back_propagate(self, errors):
         pass
+
+    def __str__(self):
+        return "%s(size:%s)" % (self.name, self.size)
+
+
+class OutputLayer(Layer):
+
+    def __str__(self):
+        return "%s(size:%s, %s)" % (self.name, self.size, [str(n) for n in self.neurons])
 
 
 class Neuron(object):
@@ -142,7 +180,8 @@ class Neuron(object):
         self.weights += learning_rate * self.delta / self.batch
 
     def __str__(self):
-        return "Neuron(%s, %s)" % (self.weights,self.bias)
+        return "Neuron(%s, %s)" % (self.weights, self.bias)
+
 
 def test():
     network = NeuralNetwork()
@@ -151,10 +190,23 @@ def test():
     network.set_output_layer(6)
     network.build()
     output = network.signal(np.array([1,2,3,4,5]))
-    print output
     network.back_propagate([2,3,4,1,1,1])
     output = network.signal(np.array([1, 2, 3, 4, 5]))
-    print output
+
+
+class NeuronTrafficLight(TrafficLight):
+
+    def __init__(self, open_way=None):
+        super(NeuronTrafficLight, self).__init__(open_way)
+        self.neuron = None
+
+    def switch(self):
+        """if neuron output is greater than 0.5 then opens North-South way"""
+        if self.open_way == self.NS and self.neuron.output < 0.5:
+            self.open_way = self.EW
+        else:
+            self.open_way = self.NS
+
 
 class QLearningNetworkAgent(TrafficLightControl):
     """ represent Q learning network agent"""
@@ -170,7 +222,7 @@ class QLearningNetworkAgent(TrafficLightControl):
         self.neural_network = None
 
     def build_light(self):
-        tl = TrafficLight()
+        tl = NeuronTrafficLight()
         self.lights.append(tl)
         return tl
 
@@ -180,12 +232,13 @@ class QLearningNetworkAgent(TrafficLightControl):
         self.neural_network.add_hidden_layer(len(self.lights))
         self.neural_network.set_output_layer(len(self.lights))
         self.neural_network.build()
+        for i in range(0, len(self.lights)):
+            self.lights[i].neuron = self.neural_network.output_layer.neurons[i]
 
     def signal(self):
         if self.env.t % self.period == 0:
             x = np.array([0 if o is None else 1 for p, o in self.env.roads.values()])
             output = self.neural_network.signal(x)
-            print output
             if self.learning:
                 for l in self.lights:
                     l.switch()
@@ -194,7 +247,7 @@ class QLearningNetworkAgent(TrafficLightControl):
 
     def after_signal(self):
         if self.learning:
-            pass
+            self.neural_network.back_propagate([0.5 if l.open_way == "NS" else  -0.5 for l in self.lights])
 
     def reset(self):
         pass
@@ -228,5 +281,5 @@ def run():
 
 
 if __name__ == '__main__':
-    #run()
+    run()
     test()
