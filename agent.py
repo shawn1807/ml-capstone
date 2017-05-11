@@ -3,7 +3,7 @@ from simulator import Simulator
 import random, numpy as np
 from collections import OrderedDict
 import logging
-logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
+logging.basicConfig(filename="log.txt", format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 def sigmoid(x):
@@ -12,7 +12,7 @@ def sigmoid(x):
 
 class NeuralNetwork(object):
 
-    def __init__(self, learning=False, epsilon=1.0, alpha=0.5):
+    def __init__(self, learning=False, epsilon=1.0, alpha=0.7):
         self.learning = learning
         self.epsilon = epsilon
         self.alpha = alpha
@@ -199,7 +199,8 @@ class NeuronTrafficLight(TrafficLight):
     def __init__(self, open_way=None):
         super(NeuronTrafficLight, self).__init__(open_way)
         self.neuron = None
-        self.score = 0
+        self.ns_vote = 0
+        self.ew_vote = 0
 
     def switch(self):
         """if neuron output is greater than 0.5 then opens North-South way"""
@@ -246,9 +247,12 @@ class NeuralNetworkAgent(TrafficLightControl):
 
     def after_signal(self):
         if self.env.t % self.period == 0 and self.learning:
-            self.neural_network.back_propagate([l.score for l in self.lights])
+            errors = []
             for l in self.lights:
-                l.score = 0
+                errors.append(1-l.neuron.output if l.ns_vote > l.ew_vote else 0-l.neuron.output)
+                l.ns_vote = 0
+                l.ew_vote = 0
+            self.neural_network.back_propagate(errors)
 
     def reset(self):
         pass
@@ -258,23 +262,21 @@ class NeuralNetworkAgent(TrafficLightControl):
         if self.lightPositions.has_key(position):
             return True
         """check next position if it is in the intersections"""
-        pos = (position[0] + heading[0], position[1] + heading[1])
+        pos = (position[0] + heading[0]*2, position[1] + heading[1]*2)
         if self.lightPositions.has_key(pos):
             light = self.lightPositions[pos]
             if light.get_open_way() == TrafficLight.NS:
                 allowPassing = heading == (0, 1) or heading == (0, -1)
-                light.score += 1 if allowPassing else -1
+                light.ns_vote += 1 if allowPassing else -1
             else:
                 allowPassing = heading == (1, 0) or heading == (-1, 0)
-                light.score += -1 if allowPassing else 1
-            return allowPassing
-        else:
-            return True
+                light.ew_vote += 1 if allowPassing else -1
+        return super(NeuralNetworkAgent,self).allow(position,heading)
 
 
 def run():
-    trials = 100
-    cars = [10, 50, 150, 200, 250, 300]
+    trials = 1
+    cars = [10]
     period = 0.5
     agent = NeuralNetworkAgent(learning=True)
     env = Environment(control=agent, grid_size=(8, 4))

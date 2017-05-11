@@ -7,7 +7,7 @@ from collections import OrderedDict
 class BenchmarkAgent(TrafficLightControl):
     """ represent benchmark agent"""
 
-    def __init__(self, period=4):
+    def __init__(self, period=2):
         super(BenchmarkAgent, self).__init__()
         self.period = period
         self.lights = []
@@ -31,7 +31,7 @@ class BenchmarkAgent(TrafficLightControl):
 
 def run():
     trials = 100
-    cars = [50, 100, 150, 200, 250, 300]
+    cars = [10, 50, 150, 200, 250, 300]
     period = 0.5
     agent = BenchmarkAgent()
     env = Environment(control=agent, grid_size=(8, 4))
