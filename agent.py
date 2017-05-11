@@ -3,8 +3,10 @@ from simulator import Simulator
 import random, numpy as np
 from collections import OrderedDict
 import logging
-logging.basicConfig(filename="log.txt", format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.DEBUG)
+
+logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
 logger = logging.getLogger(__name__)
+
 
 def sigmoid(x):
     return 1.0 / (1.0 + np.exp(-x))
@@ -115,7 +117,7 @@ class Layer(object):
             logger.debug("Updated Neurons: %s" % [str(n) for n in self.neurons])
 
     def __str__(self):
-        return "%s:%s(size:%s, %s)" % (self.name, self.index, self.size, [str(n) for n in self.neurons])
+        return "%s:%s(units:%s, %s)" % (self.name, self.index, self.size, [str(n) for n in self.neurons])
 
     def __iter__(self):
         layer = self
@@ -145,13 +147,13 @@ class InputLayer(Layer):
         pass
 
     def __str__(self):
-        return "%s(size:%s)" % (self.name, self.size)
+        return "%s(units:%s)" % (self.name, self.size)
 
 
 class OutputLayer(Layer):
 
     def __str__(self):
-        return "%s(size:%s, %s)" % (self.name, self.size, [str(n) for n in self.neurons])
+        return "%s(units:%s, %s)" % (self.name, self.size, [str(n) for n in self.neurons])
 
 
 class Neuron(object):
@@ -182,16 +184,50 @@ class Neuron(object):
     def __str__(self):
         return "Neuron(%s, %s)" % (self.weights, self.bias)
 
+import matplotlib.pyplot as plt
+import plotly.plotly as py
+
 
 def test():
     network = NeuralNetwork()
-    network.set_input_layer(5)
+    network.set_input_layer(2)
     network.add_hidden_layer(4)
-    network.set_output_layer(6)
+    network.set_output_layer(1)
     network.build()
-    output = network.signal(np.array([1,2,3,4,5]))
-    network.back_propagate([2,3,4,1,1,1])
-    output = network.signal(np.array([1, 2, 3, 4, 5]))
+    errors = []
+    line = plt.figure()
+    plt.title('Scatter plot pythonspot.com')
+    plt.xlabel('x')
+    plt.ylabel('y')
+
+    for i in range(0,3000):
+        output = network.signal(np.array([1, 0]))
+        error = 1- output
+        plt.plot(i, error, "o", color=(0,0,0))
+        errors.append(error)
+        network.back_propagate([error])
+        output = network.signal(np.array([0, 1]))
+        error = 1 - output
+        plt.plot(i, error, "o", color=(1,0,0))
+        errors.append(error)
+        network.back_propagate([error])
+
+        output = network.signal(np.array([1, 1]))
+        error = 0 - output
+        plt.plot(i, error, "o", color=(0, 1, 0))
+        errors.append(error)
+        network.back_propagate([error])
+        output = network.signal(np.array([0, 0]))
+        error = 0 - output
+        plt.plot(i, error, "o", color=(1, 1, 0))
+        errors.append(error)
+        network.back_propagate([error])
+    print network.signal(np.array([1, 0]))
+    print network.signal(np.array([0, 1]))
+    print network.signal(np.array([1, 1]))
+    print network.signal(np.array([0, 0]))
+    plt.show()
+
 
 
 class NeuronTrafficLight(TrafficLight):
@@ -204,10 +240,12 @@ class NeuronTrafficLight(TrafficLight):
 
     def switch(self):
         """if neuron output is greater than 0.5 then opens North-South way"""
-        if self.open_way == self.NS and self.neuron.output < 0.5:
+        if self.neuron.output < 0.4:
             self.open_way = self.EW
-        else:
+        elif self.neuron.output > 0.6:
             self.open_way = self.NS
+        else:
+            self.open_way = random.choice([self.EW, self.NS])
 
 
 class NeuralNetworkAgent(TrafficLightControl):
@@ -223,6 +261,7 @@ class NeuralNetworkAgent(TrafficLightControl):
         self.alpha = alpha
         self.neural_network = None
         self.input_x = None
+        self.learning_count = 0
 
     def build_light(self):
         tl = NeuronTrafficLight()
@@ -241,17 +280,25 @@ class NeuralNetworkAgent(TrafficLightControl):
     def signal(self):
         if self.env.t % self.period == 0:
             self.input_x = np.array([0 if o is None else 1 for p, o in self.env.roads.values()])
-            self.neural_network.signal(self.input_x)
+            print "output", self.neural_network.signal(self.input_x)
             for l in self.lights:
                 l.switch()
 
     def after_signal(self):
         if self.env.t % self.period == 0 and self.learning:
+            self.learning_count += 1
             errors = []
             for l in self.lights:
-                errors.append(1-l.neuron.output if l.ns_vote > l.ew_vote else 0-l.neuron.output)
+                error = 0
+                if l.ns_vote > l.ew_vote:
+                    error = 1 - l.neuron.output
+                elif l.ns_vote < l.ew_vote:
+                    error = 0 - l.neuron.output
+                errors.append(error)
+                print "NS vote:", l.ns_vote, "EW vote", l.ew_vote
                 l.ns_vote = 0
                 l.ew_vote = 0
+            print self.learning_count, ":Errors", errors
             self.neural_network.back_propagate(errors)
 
     def reset(self):
@@ -267,19 +314,25 @@ class NeuralNetworkAgent(TrafficLightControl):
             light = self.lightPositions[pos]
             if light.get_open_way() == TrafficLight.NS:
                 allowPassing = heading == (0, 1) or heading == (0, -1)
-                light.ns_vote += 1 if allowPassing else -1
+                if allowPassing:
+                    light.ns_vote += 1
+                else:
+                    light.ew_vote += 1
             else:
                 allowPassing = heading == (1, 0) or heading == (-1, 0)
-                light.ew_vote += 1 if allowPassing else -1
+                if allowPassing:
+                    light.ew_vote += 1
+                else:
+                    light.ns_vote += 1
         return super(NeuralNetworkAgent,self).allow(position,heading)
 
 
 def run():
-    trials = 1
-    cars = [10]
-    period = 0.5
-    agent = NeuralNetworkAgent(learning=True)
-    env = Environment(control=agent, grid_size=(8, 4))
+    trials = 5
+    cars = [1]
+    period = 10
+    agent = NeuralNetworkAgent(learning=True, alpha=0.9)
+    env = Environment(control=agent, grid_size=(2,2))
     simulator = Simulator(env, update_delay=0.1, filename="agent.csv")
     simulator.title = "Training Learning Agent"
     for t in range(1, trials+1):
@@ -300,4 +353,4 @@ def run():
 
 if __name__ == '__main__':
     run()
-    test()
+    #test()
