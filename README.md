@@ -11,6 +11,7 @@ In a terminal or command window, navigate to the top-level project directory `sm
 
 ```python benchmark.py```
 
-### Run
+### Run for neural network model:
 
+```python agent.py```
 

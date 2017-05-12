@@ -25,14 +25,14 @@ class NeuralNetwork(object):
     def set_input_layer(self, input_size):
         self.input_layer = InputLayer(self, input_size)
     
-    def add_hidden_layer(self, number_of_neurons):
+    def add_hidden_layer(self, number_of_neurons, activation= "sigmoid"):
         if self.hidden_layers is None:
-            self.hidden_layers = Layer(self, "Hidden Layer", number_of_neurons)
+            self.hidden_layers = Layer(self, "Hidden Layer", number_of_neurons, activation)
         else:
-            self.hidden_layers.extend(Layer(self, "Hidden Layer", number_of_neurons))
+            self.hidden_layers.extend(Layer(self, "Hidden Layer", number_of_neurons, activation))
 
-    def set_output_layer(self, number_of_neurons):
-        self.output_layer = OutputLayer(self, "Output Layer", number_of_neurons)
+    def set_output_layer(self, number_of_neurons, activation = "sigmoid"):
+        self.output_layer = OutputLayer(self, "Output Layer", number_of_neurons, activation)
 
     def build(self):
         # connect input, hidden, output layers
@@ -61,7 +61,7 @@ class NeuralNetwork(object):
 
 class Layer(object):
 
-    def __init__(self, network, name, size):
+    def __init__(self, network, name, size, activation):
         self.network = network
         self.prior = None
         self.name = name
@@ -70,6 +70,7 @@ class Layer(object):
         self.size = size
         self.built = False
         self.index = 0
+        self.activation = activation
 
     def extend(self, layer):
         if self.next is None:
@@ -83,7 +84,13 @@ class Layer(object):
         if not self.built:
             if self.prior is not None:
                 for n in range(0, self.size):
-                    self.neurons.append(Neuron(self.prior.size, np.random.random()))
+                    if self.activation == "sigmoid":
+                        neuron = Neuron(self.prior.size, np.random.random())
+                    elif self.activation == "relu":
+                        neuron = ReluNeuron(self.prior.size, np.random.random())
+                    else:
+                        raise ValueError("activation function [%s] not supported" % self.activation)
+                    self.neurons.append(neuron)
             self.built = True
 
     def forward_feed(self, x_in):
@@ -184,6 +191,20 @@ class Neuron(object):
     def __str__(self):
         return "Neuron(%s, %s)" % (self.weights, self.bias)
 
+
+class ReluNeuron(Neuron):
+
+    def activate(self, x):
+        self.input = x
+        axon = np.sum(self.weights.dot(x)) + self.bias
+        self.output = max(0,axon)
+        return self.output
+
+    def propagate_error(self, err):
+        self.error_term = err if err > 0 else 0
+        self.delta += self.input * self.error_term
+        self.batch += 1
+
 import matplotlib.pyplot as plt
 import plotly.plotly as py
 
@@ -271,7 +292,7 @@ class NeuralNetworkAgent(TrafficLightControl):
     def setup(self):
         self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
         self.neural_network.set_input_layer(len(self.env.roads))
-        self.neural_network.add_hidden_layer(len(self.lights))
+        self.neural_network.add_hidden_layer(len(self.env.roads))
         self.neural_network.set_output_layer(len(self.lights))
         self.neural_network.build()
         for i in range(0, len(self.lights)):
@@ -294,6 +315,8 @@ class NeuralNetworkAgent(TrafficLightControl):
                     error = 1 - l.neuron.output
                 elif l.ns_vote < l.ew_vote:
                     error = 0 - l.neuron.output
+                else:
+                    error = 0.5 - l.neuron.output
                 errors.append(error)
                 print "NS vote:", l.ns_vote, "EW vote", l.ew_vote
                 l.ns_vote = 0
@@ -332,7 +355,7 @@ def run():
     cars = [1]
     period = 10
     agent = NeuralNetworkAgent(learning=True, alpha=0.9)
-    env = Environment(control=agent, grid_size=(2,2))
+    env = Environment(control=agent, grid_size=(2, 2))
     simulator = Simulator(env, update_delay=0.1, filename="agent.csv")
     simulator.title = "Training Learning Agent"
     for t in range(1, trials+1):
