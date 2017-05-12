@@ -292,7 +292,7 @@ class NeuralNetworkAgent(TrafficLightControl):
     def setup(self):
         self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
         self.neural_network.set_input_layer(len(self.env.roads))
-        self.neural_network.add_hidden_layer(len(self.env.roads))
+        self.neural_network.add_hidden_layer(len(self.env.roads),activation="relu")
         self.neural_network.set_output_layer(len(self.lights))
         self.neural_network.build()
         for i in range(0, len(self.lights)):
