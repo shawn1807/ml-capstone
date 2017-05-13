@@ -85,11 +85,11 @@ class Layer(object):
             if self.prior is not None:
                 for n in range(0, self.size):
                     if self.activation == "sigmoid":
-                        neuron = Neuron(self.prior.size, np.random.random())
+                        neuron = SigmoidNeuron(self.prior.size, np.random.random())
                     elif self.activation == "relu":
                         neuron = ReluNeuron(self.prior.size, np.random.random())
-                    elif self.activation == "identity":
-                        neuron = IdentityNeuron(self.prior.size, np.random.random())
+                    elif self.activation == "standard":
+                        neuron = Neuron(self.prior.size, np.random.random())
                     else:
                         raise ValueError("activation function [%s] not supported" % self.activation)
                     self.neurons.append(neuron)
@@ -179,11 +179,11 @@ class Neuron(object):
     def activate(self, x):
         self.input = x
         axon = np.sum(self.weights.dot(x)) + self.bias
-        self.output = sigmoid(axon)
+        self.output = axon
         return self.output
 
     def propagate_error(self, err):
-        self.error_term = err * (1-self.output) * self.output
+        self.error_term = err
         self.delta += self.input * self.error_term
         self.batch += 1
 
@@ -194,18 +194,18 @@ class Neuron(object):
         return "Neuron(%s, %s)" % (self.weights, self.bias)
 
 
-class IdentityNeuron(Neuron):
-
+class SigmoidNeuron(Neuron):
     def activate(self, x):
         self.input = x
         axon = np.sum(self.weights.dot(x)) + self.bias
-        self.output = axon
+        self.output = sigmoid(axon)
         return self.output
 
     def propagate_error(self, err):
-        self.error_term = err
+        self.error_term = err * (1-self.output) * self.output
         self.delta += self.input * self.error_term
         self.batch += 1
+
 
 class ReluNeuron(Neuron):
 
@@ -236,7 +236,7 @@ def test():
     plt.xlabel('x')
     plt.ylabel('y')
 
-    for i in range(0,3000):
+    for i in range(0,2000):
         output = network.signal(np.array([1, 0]))
         error = 1- output
         plt.plot(i, error, "o", color=(0,0,0))
@@ -307,8 +307,9 @@ class NeuralNetworkAgent(TrafficLightControl):
     def setup(self):
         self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
         self.neural_network.set_input_layer(len(self.env.roads))
-        self.neural_network.add_hidden_layer(len(self.env.roads), activation="identity")
-        self.neural_network.set_output_layer(len(self.lights))
+        #self.neural_network.add_hidden_layer(len(self.env.roads), activation="relu")
+        self.neural_network.add_hidden_layer(len(self.env.roads), activation="sigmoid")
+        self.neural_network.set_output_layer(len(self.lights), activation="sigmoid")
         self.neural_network.build()
         for i in range(0, len(self.lights)):
             self.lights[i].neuron = self.neural_network.output_layer.neurons[i]
@@ -390,5 +391,5 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
-    #test()
+    #run()
+    test()
