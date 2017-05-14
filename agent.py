@@ -175,6 +175,7 @@ class Neuron(object):
         self.delta = np.zeros(n_in)
         self.batch = 0
         self.error_term = 0
+        self.errors = 0
 
     def activate(self, x):
         self.input = x
@@ -183,12 +184,16 @@ class Neuron(object):
         return self.output
 
     def propagate_error(self, err):
+        self.errors += err
         self.error_term = err
         self.delta += self.input * self.error_term
         self.batch += 1
 
     def update(self, learning_rate):
         self.weights += learning_rate * self.delta / self.batch
+        self.bias = self.errors / self.batch
+        self.delta = 0
+        self.batch = 0
 
     def __str__(self):
         return "Neuron(%s, %s)" % (self.weights, self.bias)
@@ -236,7 +241,7 @@ def test():
     plt.xlabel('x')
     plt.ylabel('y')
 
-    for i in range(0,2000):
+    for i in range(0,10):
         output = network.signal(np.array([1, 0]))
         error = 1- output
         plt.plot(i, error, "o", color=(0,0,0))
@@ -307,8 +312,7 @@ class NeuralNetworkAgent(TrafficLightControl):
     def setup(self):
         self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
         self.neural_network.set_input_layer(len(self.env.roads))
-        #self.neural_network.add_hidden_layer(len(self.env.roads), activation="relu")
-        self.neural_network.add_hidden_layer(len(self.env.roads), activation="sigmoid")
+        self.neural_network.add_hidden_layer(len(self.env.roads)*2, activation="relu")
         self.neural_network.set_output_layer(len(self.lights), activation="sigmoid")
         self.neural_network.build()
         for i in range(0, len(self.lights)):
@@ -368,10 +372,10 @@ class NeuralNetworkAgent(TrafficLightControl):
 
 def run():
     trials = 5
-    cars = [1]
+    cars = [1, 50, 100]
     period = 10
     agent = NeuralNetworkAgent(learning=True, alpha=0.9)
-    env = Environment(control=agent, grid_size=(2, 2))
+    env = Environment(control=agent, grid_size=(4,4))
     simulator = Simulator(env, update_delay=0.1, filename="agent.csv")
     simulator.title = "Training Learning Agent"
     for t in range(1, trials+1):
@@ -391,5 +395,5 @@ def run():
 
 
 if __name__ == '__main__':
-    #run()
-    test()
+    run()
+    #test()
