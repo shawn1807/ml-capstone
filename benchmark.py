@@ -31,10 +31,10 @@ class BenchmarkAgent(TrafficLightControl):
 
 def run():
     trials = 100
-    cars = [100]
+    cars = [3]
     period = 5
-    agent = BenchmarkAgent()
-    env = Environment(control=agent, grid_size=(8, 4))
+    agent = BenchmarkAgent(period=4)
+    env = Environment(control=agent, grid_size=(2, 2))
     simulator = Simulator(env, update_delay=0.1, title="Benchmark", filename="benchmark.csv")
     for t in range(1, trials+1):
         for ncar in cars:

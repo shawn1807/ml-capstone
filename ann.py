@@ -50,16 +50,16 @@ def test():
 def sigmoid(x):
     return 1.0 / (1.0 + np.exp(-x))
 
-def cross_entropy(z, a, y):
-    return (y - a)
+def cross_entropy(a, y):
+    return (- math.log1p(a)*y + (1-y) * math.log1p(1-a))
 
-def quadratic(z, a, y):
-    return (y -a) * (1 - a) * a
+def quadratic(a, y):
+    return a - y
 
 
 class NeuralNetwork(object):
 
-    def __init__(self, learning=False, epsilon=1.0, alpha=0.7, batch_size = 1):
+    def __init__(self, learning=False, epsilon=1.0, alpha=0.7, batch_size = 1,cost_func=quadratic):
         self.learning = learning
         self.epsilon = epsilon
         self.alpha = alpha
@@ -69,6 +69,7 @@ class NeuralNetwork(object):
         self.output = None
         self.batch_size = batch_size
         self.count = 0
+        self.cost_func = cost_func
 
     def set_input_layer(self, input_size):
         self.input_layer = InputLayer(self, input_size)
@@ -99,8 +100,7 @@ class NeuralNetwork(object):
         return self.output
 
     def back_propagate(self, y):
-        errors = np.array(self.output) - np.array(y)
-        self.output_layer.back_propagate(errors)
+        self.output_layer.back_propagate([self.cost_func(a, yi) for a, yi in zip(self.output, y)])
         self.count += 1
         if self.count % self.batch_size == 0:
             for l in self.hidden_layers:
@@ -135,11 +135,11 @@ class Layer(object):
             if self.prior is not None:
                 for n in range(0, self.size):
                     if self.activation == "sigmoid":
-                        neuron = SigmoidNeuron(self.prior.size, np.random.random())
+                        neuron = SigmoidNeuron(self.prior.size)
                     elif self.activation == "relu":
-                        neuron = ReluNeuron(self.prior.size, np.random.random())
+                        neuron = ReluNeuron(self.prior.size)
                     elif self.activation == "standard":
-                        neuron = Neuron(self.prior.size, np.random.random())
+                        neuron = Neuron(self.prior.size)
                     else:
                         raise ValueError("activation function [%s] not supported" % self.activation)
                     self.neurons.append(neuron)
@@ -215,9 +215,9 @@ class OutputLayer(Layer):
 
 class Neuron(object):
 
-    def __init__(self, n_in, bias):
+    def __init__(self, n_in):
         self.weights = np.random.randn(n_in)/np.sqrt(n_in)
-        self.bias = bias
+        self.bias = np.random.rand()
         self.input = None
         self.output = None
         self.delta = np.zeros(n_in)
