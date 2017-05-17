@@ -26,7 +26,7 @@ class NeuronTrafficLight(TrafficLight):
 class LearningAgent(TrafficLightControl):
     """ represent Q learning network agent"""
 
-    def __init__(self, period=2, learning=False, epsilon=1.0, alpha=0.5):
+    def __init__(self, period=2, learning=False, epsilon=1.0, alpha=0.5, batch_size = 10):
         super(LearningAgent, self).__init__()
         self.period = period
         self.lights = []
@@ -36,6 +36,7 @@ class LearningAgent(TrafficLightControl):
         self.alpha = alpha
         self.neural_network = None
         self.input_x = None
+        self.batch_size = batch_size
         self.learning_count = 0
 
     def build_light(self):
@@ -44,11 +45,13 @@ class LearningAgent(TrafficLightControl):
         return tl
 
     def setup(self):
-        self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
+        self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha, batch_size=self.batch_size)
         self.neural_network.set_input_layer(len(self.env.roads))
-        self.neural_network.add_hidden_layer(len(self.env.roads)*2, activation="relu")
+        self.neural_network.add_hidden_layer(len(self.env.roads), activation="relu")
+        self.neural_network.add_hidden_layer(1, activation="relu")
         self.neural_network.set_output_layer(len(self.lights), activation="sigmoid")
         self.neural_network.build()
+        print self.neural_network
         for i in range(0, len(self.lights)):
             self.lights[i].neuron = self.neural_network.output_layer.neurons[i]
 
@@ -102,9 +105,9 @@ class LearningAgent(TrafficLightControl):
 
 def run():
     trials = 5
-    cars = [10]
+    cars = [100]
     period = 50
-    agent = LearningAgent(learning=True, alpha=0.9)
+    agent = LearningAgent(learning=True,batch_size=1)
     env = Environment(control=agent, grid_size=(8, 4))
     simulator = Simulator(env, update_delay=0.1, filename="agent.csv")
     simulator.title = "Training Learning Agent"
