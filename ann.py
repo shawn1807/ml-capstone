@@ -1,13 +1,14 @@
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
-import math
+from sklearn.metrics import log_loss
+
 logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 def test():
-    network = NeuralNetwork(batch_size=1,alpha=0.8,learning=True)
+    network = NeuralNetwork(alpha=0.8)
     network.set_input_layer(2)
     network.add_hidden_layer(20)
     network.set_output_layer(1)
@@ -50,8 +51,10 @@ def test():
 def sigmoid(x):
     return 1.0 / (1.0 + np.exp(-x))
 
+
 def cross_entropy(a, y):
-    return (- math.log1p(a)*y + (1-y) * math.log1p(1-a))
+    return log_loss([y], [a], labels=[0, 1])
+
 
 def quadratic(a, y):
     return a - y
@@ -59,16 +62,13 @@ def quadratic(a, y):
 
 class NeuralNetwork(object):
 
-    def __init__(self, learning=False, epsilon=1.0, alpha=0.7, batch_size = 1,cost_func=quadratic):
-        self.learning = learning
+    def __init__(self, epsilon=1.0, alpha=0.7, cost_func=quadratic):
         self.epsilon = epsilon
         self.alpha = alpha
         self.hidden_layers = None
         self.output_layer = None
         self.input_layer = None
         self.output = None
-        self.batch_size = batch_size
-        self.count = 0
         self.cost_func = cost_func
 
     def set_input_layer(self, input_size):
@@ -96,21 +96,20 @@ class NeuralNetwork(object):
         logger.debug("Neural network built [%s]" % self)
 
     def signal(self, x_array):
-        self.output = self.input_layer.forward_feed(np.array(x_array))
+        self.output = self.input_layer.feed_forward(np.array(x_array))
         return self.output
 
     def back_propagate(self, y):
         self.output_layer.back_propagate([self.cost_func(a, yi) for a, yi in zip(self.output, y)])
-        self.count += 1
-        if self.count % self.batch_size == 0:
-            for l in self.hidden_layers:
-                l.update()
+        for l in self.hidden_layers:
+            l.update()
 
     def __str__(self):
         return "(learning rate:%s) %s" % (self.alpha, [str(l) for l in self.input_layer])
 
 
 class Layer(object):
+
     def __init__(self, network, name, size, activation):
         self.network = network
         self.prior = None
@@ -145,7 +144,7 @@ class Layer(object):
                     self.neurons.append(neuron)
             self.built = True
 
-    def forward_feed(self, x_in):
+    def feed_forward(self, x_in):
         if logging.getLogger().getEffectiveLevel() == logging.DEBUG:
             logger.debug("Input: %s" % x_in)
             logger.debug("Neurons: %s" % [str(n) for n in self.neurons])
@@ -153,7 +152,7 @@ class Layer(object):
         if logging.getLogger().getEffectiveLevel() == logging.DEBUG:
             logger.debug("Output: %s" % output)
         if self.next is not None:
-            return self.next.forward_feed(output)
+            return self.next.feed_forward(output)
         else:
             return output
 
@@ -186,6 +185,7 @@ class Layer(object):
 
 
 class InputLayer(Layer):
+
     def __init__(self, network, input_size):
         self.network = network
         self.size = input_size
@@ -197,9 +197,9 @@ class InputLayer(Layer):
     def build(self):
         pass
 
-    def forward_feed(self, x_in):
+    def feed_forward(self, x_in):
         """Input layer doesn't do anything, pass input to next layer"""
-        return self.next.forward_feed(x_in)
+        return self.next.feed_forward(x_in)
 
     def back_propagate(self, errors):
         pass
@@ -209,6 +209,7 @@ class InputLayer(Layer):
 
 
 class OutputLayer(Layer):
+
     def __str__(self, ):
         return "%s(units:%s, %s)" % (self.name, self.size, [str(n) for n in self.neurons])
 
@@ -227,8 +228,7 @@ class Neuron(object):
 
     def activate(self, x):
         self.input = x
-        axon = np.sum(self.weights.dot(x)) + self.bias
-        self.output = axon
+        self.output = np.sum(self.weights.dot(x)) + self.bias
         return self.output
 
     def propagate_error(self, err):
@@ -252,8 +252,7 @@ class SigmoidNeuron(Neuron):
 
     def activate(self, x):
         self.input = x
-        axon = np.sum(self.weights.dot(x)) + self.bias
-        self.output = sigmoid(axon)
+        self.output = sigmoid(np.sum(self.weights.dot(x)) + self.bias)
         return self.output
 
     def propagate_error(self, err):
@@ -267,13 +266,12 @@ class ReluNeuron(Neuron):
 
     def activate(self, x):
         self.input = x
-        axon = np.sum(self.weights.dot(x)) + self.bias
-        self.output = max(0, axon)
+        self.output = max([0, np.sum(self.weights.dot(x)) + self.bias])
         return self.output
 
     def propagate_error(self, err):
         self.errors += err
-        self.error_term = err if err > 0 else 0
+        self.error_term = 1 if err > 0 else 0
         self.delta += self.input * self.error_term
         self.batch += 1
 

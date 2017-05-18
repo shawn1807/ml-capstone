@@ -6,6 +6,7 @@ from ann import NeuralNetwork
 
 from ann import cross_entropy
 
+
 class NeuronTrafficLight(TrafficLight):
 
     def __init__(self, open_way=None):
@@ -45,7 +46,7 @@ class LearningAgent(TrafficLightControl):
         return tl
 
     def setup(self):
-        self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha, batch_size=1)
+        self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha, cost_func=cross_entropy)
         self.neural_network.set_input_layer(len(self.env.roads))
         self.neural_network.add_hidden_layer(len(self.env.roads), activation="relu")
         self.neural_network.set_output_layer(len(self.lights), activation="sigmoid")
@@ -71,6 +72,7 @@ class LearningAgent(TrafficLightControl):
                     best = 1
                 elif l.ns_vote < l.ew_vote:
                     best = 0
+
                 expected.append(best)
                 l.ns_vote = 0
                 l.ew_vote = 0
@@ -106,7 +108,7 @@ def run():
     trials = 5
     cars = [3]
     period = 50
-    agent = LearningAgent(learning=True, alpha=0.53)
+    agent = LearningAgent(learning=True, alpha=0.14)
     env = Environment(control=agent, grid_size=(2, 2))
     simulator = Simulator(env, update_delay=0.1, filename="agent.csv")
     simulator.title = "Training Learning Agent"
