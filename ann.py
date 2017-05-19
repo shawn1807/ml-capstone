@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def test():
-    network = NeuralNetwork(alpha=0.8)
+    network = NeuralNetwork(alpha=0.5)
     network.set_input_layer(2)
     network.add_hidden_layer(20)
     network.set_output_layer(1)
@@ -21,23 +21,23 @@ def test():
 
     for i in range(0,1000):
         output = network.signal(np.array([1, 0]))
-        error = 1- output
+        error = output - 1
         plt.plot(i, error, "x", color=(0,0,0))
         errors.append(error)
         network.back_propagate([1])
         output = network.signal(np.array([0, 1]))
-        error = 1 - output
+        error = output - 1
         plt.plot(i, error, "o", color=(1,0,0))
         errors.append(error)
         network.back_propagate([1])
 
         output = network.signal(np.array([1, 1]))
-        error = 1 - output
+        error = output - 1
         plt.plot(i, error, "o", color=(0, 1, 0))
         errors.append(error)
         network.back_propagate([0])
         output = network.signal(np.array([0, 0]))
-        error = 0 - output
+        error = output
         plt.plot(i, error, "o", color=(1, 1, 0))
         errors.append(error)
         network.back_propagate([0])

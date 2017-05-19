@@ -46,7 +46,7 @@ class LearningAgent(TrafficLightControl):
         return tl
 
     def setup(self):
-        self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha, cost_func=cross_entropy)
+        self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
         self.neural_network.set_input_layer(len(self.env.roads))
         self.neural_network.add_hidden_layer(len(self.env.roads), activation="relu")
         self.neural_network.set_output_layer(len(self.lights), activation="sigmoid")
@@ -106,10 +106,10 @@ class LearningAgent(TrafficLightControl):
 
 def run():
     trials = 5
-    cars = [3]
+    cars = [100]
     period = 50
     agent = LearningAgent(learning=True, alpha=0.14)
-    env = Environment(control=agent, grid_size=(2, 2))
+    env = Environment(control=agent, grid_size=(8, 4))
     simulator = Simulator(env, update_delay=0.1, filename="agent.csv")
     simulator.title = "Training Learning Agent"
     for t in range(1, trials+1):
