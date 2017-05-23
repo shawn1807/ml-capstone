@@ -7,48 +7,9 @@ logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S
 logger = logging.getLogger(__name__)
 
 
-def test():
-    network = NeuralNetwork(alpha=0.5)
-    network.set_input_layer(2)
-    network.add_hidden_layer(20)
-    network.set_output_layer(1)
-    network.build()
-    errors = []
-    line = plt.figure()
-
-    plt.xlabel('x')
-    plt.ylabel('y')
-
-    for i in range(0,1000):
-        output = network.signal(np.array([1, 0]))
-        error = output - 1
-        plt.plot(i, error, "x", color=(0,0,0))
-        errors.append(error)
-        network.back_propagate([1])
-        output = network.signal(np.array([0, 1]))
-        error = output - 1
-        plt.plot(i, error, "o", color=(1,0,0))
-        errors.append(error)
-        network.back_propagate([1])
-
-        output = network.signal(np.array([1, 1]))
-        error = output - 1
-        plt.plot(i, error, "o", color=(0, 1, 0))
-        errors.append(error)
-        network.back_propagate([0])
-        output = network.signal(np.array([0, 0]))
-        error = output
-        plt.plot(i, error, "o", color=(1, 1, 0))
-        errors.append(error)
-        network.back_propagate([0])
-    print network.signal(np.array([1, 0]))
-    print network.signal(np.array([0, 1]))
-    print network.signal(np.array([1, 1]))
-    print network.signal(np.array([0, 0]))
-    plt.show()
-
 
 def sigmoid(x):
+    x = np.clip(x, -750, 750)
     return 1.0 / (1.0 + np.exp(-x))
 
 
@@ -137,7 +98,7 @@ class Layer(object):
                         neuron = SigmoidNeuron(self.prior.size)
                     elif self.activation == "relu":
                         neuron = ReluNeuron(self.prior.size)
-                    elif self.activation == "standard":
+                    elif self.activation == "identity":
                         neuron = Neuron(self.prior.size)
                     else:
                         raise ValueError("activation function [%s] not supported" % self.activation)
@@ -199,6 +160,7 @@ class InputLayer(Layer):
 
     def feed_forward(self, x_in):
         """Input layer doesn't do anything, pass input to next layer"""
+        x_in = x_in * 1.
         return self.next.feed_forward(x_in)
 
     def back_propagate(self, errors):
@@ -239,7 +201,7 @@ class Neuron(object):
 
     def update(self, learning_rate):
         self.weights -= learning_rate * self.delta / self.batch
-        self.bias -= self.errors / self.batch
+        self.bias -= learning_rate * self.errors / self.batch
         self.delta = 0.0
         self.batch = 0
         self.errors = 0.0
