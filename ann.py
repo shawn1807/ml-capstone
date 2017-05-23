@@ -62,6 +62,8 @@ class NeuralNetwork(object):
 
     def back_propagate(self, y):
         self.output_layer.back_propagate([self.cost_func(a, yi) for a, yi in zip(self.output, y)])
+
+    def update(self):
         for l in self.hidden_layers:
             l.update()
 

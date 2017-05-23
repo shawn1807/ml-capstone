@@ -128,7 +128,7 @@ class Environment(object):
         self.control.set_env(self)
         self.bounds = (1, 1, self.grid_size[0] * 4 , self.grid_size[1] * 4)
         self.grid_size = grid_size  # (columns, rows)
-
+        self.number_of_car = 0
         # Road network
         self.intersections = OrderedDict()
         self.roads = OrderedDict()
@@ -176,9 +176,11 @@ class Environment(object):
         self.t += 1
         self.stall = 0
         self.control.signal()
+        self.number_of_car = 0
         for pos, t in self.roads.items():
             pos, obj = t
             if type(obj) is Car:
+                self.number_of_car += 1
                 obj.step()
                 if obj.stall:
                     self.stall += 1
