@@ -1,11 +1,9 @@
 import logging
 import numpy as np
-import matplotlib.pyplot as plt
 from sklearn.metrics import log_loss
 
 logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.INFO)
 logger = logging.getLogger(__name__)
-
 
 
 def sigmoid(x):
@@ -18,6 +16,8 @@ def cross_entropy(a, y):
 
 
 def quadratic(a, y):
+    a = np.clip(a, -750, 750)
+    y = np.clip(y, -750, 750)
     return a - y
 
 
@@ -202,11 +202,13 @@ class Neuron(object):
         self.batch += 1
 
     def update(self, learning_rate):
+        print "before update wights",self.batch,self.weights
         self.weights -= learning_rate * self.delta / self.batch
         self.bias -= learning_rate * self.errors / self.batch
         self.delta = 0.0
         self.batch = 0
         self.errors = 0.0
+        print "after wights", self.batch, self.weights
 
     def __str__(self):
         return "Neuron(%s, %s)" % (self.weights, self.bias)
@@ -238,6 +240,3 @@ class ReluNeuron(Neuron):
         self.error_term = 1 if err > 0 else 0
         self.delta += self.input * self.error_term
         self.batch += 1
-
-if __name__ == '__main__':
-    test()
