@@ -36,7 +36,7 @@ class LearningAgent(TrafficLightControl):
         self.learning = learning
         self.epsilon = epsilon
         self.alpha = alpha
-        self.neural_network = None
+        self.model = None
         self.input_x = None
         self.learning_count = 0
 
@@ -46,19 +46,19 @@ class LearningAgent(TrafficLightControl):
         return tl
 
     def setup(self):
-        self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
-        self.neural_network.set_input_layer(len(self.env.roads))
-        self.neural_network.add_hidden_layer(len(self.env.roads), activation="sigmoid")
-        self.neural_network.set_output_layer(len(self.lights), activation="sigmoid")
-        self.neural_network.build()
-        self.neural_network
+        self.model = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
+        self.model.set_input_layer(len(self.env.roads))
+        self.model.add_hidden_layer(len(self.env.roads), activation="sigmoid")
+        self.model.set_output_layer(len(self.lights), activation="sigmoid")
+        self.model.build()
+        self.model
         for i in range(0, len(self.lights)):
-            self.lights[i].neuron = self.neural_network.output_layer.neurons[i]
+            self.lights[i].neuron = self.model.output_layer.neurons[i]
 
     def signal(self):
         if self.env.t % self.period == 0:
             self.input_x = np.array([0 if o is None else 1 for p, o in self.env.roads.values()])
-            self.neural_network.signal(self.input_x)
+            self.model.signal(self.input_x)
             for l in self.lights:
                 l.switch()
 
@@ -76,8 +76,8 @@ class LearningAgent(TrafficLightControl):
                 expected.append(best)
                 l.ns_vote = 0
                 l.ew_vote = 0
-            self.neural_network.back_propagate(expected)
-            self.neural_network.update()
+            self.model.back_propagate(expected)
+            self.model.update()
 
     def reset(self):
         pass

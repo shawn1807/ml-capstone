@@ -21,9 +21,19 @@ def quadratic(a, y):
     return a - y
 
 
+class NeuronInitializer(object):
+
+    def init_weights(self, size):
+        return np.random.randn(size)/np.sqrt(size)
+
+    def init_bias(self):
+        return np.random.random()
+
+
 class NeuralNetwork(object):
 
-    def __init__(self, epsilon=1.0, alpha=0.7, cost_func=quadratic):
+    def __init__(self, epsilon=1.0, alpha=0.7,neuron_initializer=NeuronInitializer, cost_func=quadratic):
+        self.neuron_initializer = neuron_initializer
         self.epsilon = epsilon
         self.alpha = alpha
         self.hidden_layers = None
@@ -73,8 +83,8 @@ class NeuralNetwork(object):
 
 class Layer(object):
 
-    def __init__(self, network, name, size, activation):
-        self.network = network
+    def __init__(self, neuralnet, name, size, activation):
+        self.neuralnet = neuralnet
         self.prior = None
         self.name = name
         self.next = None
@@ -92,16 +102,19 @@ class Layer(object):
         else:
             self.next.extend(layer)
 
+    """build neurons"""
     def build(self):
         if not self.built:
             if self.prior is not None:
+                weights = self.neuralnet.neuron_initializer.init_weights(self.prior.size)
+                bias = self.neuralnet.neuron_initializer.init_bias()
                 for n in range(0, self.size):
                     if self.activation == "sigmoid":
-                        neuron = SigmoidNeuron(self.prior.size)
+                        neuron = SigmoidNeuron(weights,bias)
                     elif self.activation == "relu":
-                        neuron = ReluNeuron(self.prior.size)
+                        neuron = ReluNeuron(weights,bias)
                     elif self.activation == "identity":
-                        neuron = Neuron(self.prior.size)
+                        neuron = Neuron(weights,bias)
                     else:
                         raise ValueError("activation function [%s] not supported" % self.activation)
                     self.neurons.append(neuron)
@@ -133,7 +146,7 @@ class Layer(object):
 
     def update(self):
         for n in self.neurons:
-            n.update(self.network.alpha)
+            n.update(self.neuralnet.alpha)
         if logging.getLogger().getEffectiveLevel() == logging.DEBUG:
             logger.debug("Updated Neurons: %s" % [str(n) for n in self.neurons])
 
@@ -180,12 +193,12 @@ class OutputLayer(Layer):
 
 class Neuron(object):
 
-    def __init__(self, n_in):
-        self.weights = np.random.randn(n_in)/np.sqrt(n_in)
-        self.bias = np.random.rand()
+    def __init__(self, weights, bias):
+        self.weights = weights
+        self.bias = bias
         self.input = None
         self.output = None
-        self.delta = np.zeros(n_in)
+        self.delta = np.zeros(len(weights))
         self.batch = 0
         self.error_term = 0
         self.errors = 0
@@ -202,13 +215,11 @@ class Neuron(object):
         self.batch += 1
 
     def update(self, learning_rate):
-        print "before update wights",self.batch,self.weights
         self.weights -= learning_rate * self.delta / self.batch
         self.bias -= learning_rate * self.errors / self.batch
         self.delta = 0.0
         self.batch = 0
         self.errors = 0.0
-        print "after wights", self.batch, self.weights
 
     def __str__(self):
         return "Neuron(%s, %s)" % (self.weights, self.bias)

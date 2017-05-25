@@ -2,7 +2,7 @@ from environment import Environment, TrafficLightControl, TrafficLight, Car
 from simulator import Simulator
 import random, numpy as np
 from collections import OrderedDict
-from ann import NeuralNetwork
+from ann import NeuralNetwork, NeuronInitializer
 
 from ann import cross_entropy
 
@@ -29,6 +29,12 @@ class NeuronTrafficLight(TrafficLight):
             self.open_way = random.choice([self.EW, self.NS])
 
 
+class WeightsInitializer(NeuronInitializer):
+
+    def init_weights(self, size):
+        return np.ones(size)
+
+
 class QLearningAgent(TrafficLightControl):
     """ Q learning network agent"""
 
@@ -40,7 +46,7 @@ class QLearningAgent(TrafficLightControl):
         self.learning = learning
         self.epsilon = min([0.99, epsilon])
         self.alpha = alpha
-        self.neural_network = None
+        self.model = None
         self.input_x = None
         self.learning_count = 0
         self.batch_size = batch_size
@@ -58,25 +64,24 @@ class QLearningAgent(TrafficLightControl):
         return tl
 
     def setup(self):
-        self.neural_network = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
-        self.neural_network.set_input_layer(len(self.env.roads))
-        self.neural_network.add_hidden_layer(len(self.env.roads), activation="relu")
-        self.neural_network.add_hidden_layer(len(self.env.roads), activation="relu")
-        self.neural_network.add_hidden_layer(len(self.env.roads), activation="relu")
-        self.neural_network.set_output_layer(len(self.lights)*2, activation="identity")
-        self.neural_network.build()
-        self.neural_network
+        self.model = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha,neuron_initializer= WeightsInitializer())
+        self.model.set_input_layer(len(self.env.roads))
+        self.model.add_hidden_layer(len(self.env.roads), activation="relu")
+        self.model.add_hidden_layer(len(self.env.roads), activation="relu")
+        self.model.add_hidden_layer(len(self.env.roads), activation="relu")
+        self.model.set_output_layer(len(self.lights)*2, activation="identity")
+        self.model.build()
         for i in range(0, len(self.lights)):
-            self.lights[i].ns_neuron = self.neural_network.output_layer.neurons[i]
-            self.lights[i].ew_neuron = self.neural_network.output_layer.neurons[i * 2 + 1]
+            self.lights[i].ns_neuron = self.model.output_layer.neurons[i]
+            self.lights[i].ew_neuron = self.model.output_layer.neurons[i * 2 + 1]
 
     def signal(self):
         if self.env.t % self.period == 0:
             self.input_x = np.array([0 if o is None else 1 for p, o in self.env.roads.values()])
-            self.neural_network.signal(self.input_x)
+            self.model.signal(self.input_x)
             print self.epsilon
             if random.random() > self.epsilon or not self.learning:
-                print "trained actions", self.neural_network.output
+                print "trained actions", self.model.output
                 self.actions = []
                 for l in self.lights:
                     l.switch()
@@ -111,8 +116,8 @@ class QLearningAgent(TrafficLightControl):
                 for b in batch:
                     s0, a0, r0, s1 = b
                     # find next s1 state return first, because s0 state needs propagate error back and neural network kept last activation
-                    q1 = self.neural_network.signal(s1)
-                    q0 = self.neural_network.signal(s0)
+                    q1 = self.model.signal(s1)
+                    q0 = self.model.signal(s0)
                     expected = []
                     for i in range(0, len(q0), 2):
                         q0_ns = q0[i]
@@ -130,9 +135,9 @@ class QLearningAgent(TrafficLightControl):
                     print "q1", q1
                     print "q0", q0
                     print "expected", expected
-                    self.neural_network.back_propagate(expected)
+                    self.model.back_propagate(expected)
                 #batch update
-                self.neural_network.update()
+                self.model.update()
             if self.epsilon > 0.1:
                 self.epsilon = self.epsilon - (1./((self.learning_count+1) ** 2))
 
