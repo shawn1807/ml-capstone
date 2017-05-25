@@ -32,7 +32,7 @@ class NeuronInitializer(object):
 
 class NeuralNetwork(object):
 
-    def __init__(self, epsilon=1.0, alpha=0.7,neuron_initializer=NeuronInitializer, cost_func=quadratic):
+    def __init__(self, epsilon=1.0, alpha=0.7,neuron_initializer=NeuronInitializer(), cost_func=quadratic):
         self.neuron_initializer = neuron_initializer
         self.epsilon = epsilon
         self.alpha = alpha
@@ -106,9 +106,9 @@ class Layer(object):
     def build(self):
         if not self.built:
             if self.prior is not None:
-                weights = self.neuralnet.neuron_initializer.init_weights(self.prior.size)
-                bias = self.neuralnet.neuron_initializer.init_bias()
                 for n in range(0, self.size):
+                    weights = self.neuralnet.neuron_initializer.init_weights(self.prior.size)
+                    bias = self.neuralnet.neuron_initializer.init_bias()
                     if self.activation == "sigmoid":
                         neuron = SigmoidNeuron(weights,bias)
                     elif self.activation == "relu":
