@@ -4,7 +4,6 @@ import random, numpy as np
 from collections import OrderedDict
 from ann import NeuralNetwork, NeuronInitializer
 
-from ann import cross_entropy
 
 """
 one single traffic light pairs two neurons used to judge q value
@@ -32,7 +31,7 @@ class NeuronTrafficLight(TrafficLight):
 class WeightsInitializer(NeuronInitializer):
 
     def init_weights(self, size):
-        return np.ones(size)
+        return np.random.randn(size)
 
 
 class QLearningAgent(TrafficLightControl):
@@ -64,10 +63,8 @@ class QLearningAgent(TrafficLightControl):
         return tl
 
     def setup(self):
-        self.model = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha,neuron_initializer= WeightsInitializer())
+        self.model = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
         self.model.set_input_layer(len(self.env.roads))
-        self.model.add_hidden_layer(len(self.env.roads), activation="relu")
-        self.model.add_hidden_layer(len(self.env.roads), activation="relu")
         self.model.add_hidden_layer(len(self.env.roads), activation="relu")
         self.model.set_output_layer(len(self.lights)*2, activation="identity")
         self.model.build()
@@ -79,15 +76,12 @@ class QLearningAgent(TrafficLightControl):
         if self.env.t % self.period == 0:
             self.input_x = np.array([0 if o is None else 1 for p, o in self.env.roads.values()])
             self.model.signal(self.input_x)
-            print self.epsilon
             if random.random() > self.epsilon or not self.learning:
-                print "trained actions", self.model.output
                 self.actions = []
                 for l in self.lights:
                     l.switch()
                     self.actions.append(l.open_way)
             else:
-                print "random action"
                 self.actions = [random.choice([TrafficLight.NS, TrafficLight.EW]) for i in range(0, len(self.lights))]
                 for a, l in zip(self.actions, self.lights):
                     l.open_way = a
@@ -97,7 +91,6 @@ class QLearningAgent(TrafficLightControl):
             self.learning_count += 1
             #global reward
             g_reward = round((self.env.number_of_car - self.env.stall) * 1./self.env.number_of_car * 100, 2)
-            print "global reward", g_reward
             if self.learning_count > 1000 :
                 self.learning = False
             next_state = np.array([0 if o is None else 1 for p, o in self.env.roads.values()])
@@ -131,13 +124,13 @@ class QLearningAgent(TrafficLightControl):
                         else:
                             expected.append(r0[i] + (self.gamma * maxQ))
                             expected.append(q0_ew)
-                    print "r0", r0
-                    print "q1", q1
+                    self.model.back_propagate(expected)
+                    self.model.update()
                     print "q0", q0
                     print "expected", expected
-                    self.model.back_propagate(expected)
+                    print self.model.signal(s0)
                 #batch update
-                self.model.update()
+                #self.model.update()
             if self.epsilon > 0.1:
                 self.epsilon = self.epsilon - (1./((self.learning_count+1) ** 2))
 
@@ -169,10 +162,10 @@ class QLearningAgent(TrafficLightControl):
 
 def run():
     trials = 5
-    cars = [10]
+    cars = [1]
     period = 50
-    agent = QLearningAgent(learning=True, alpha=0.2, epsilon=1)
-    env = Environment(control=agent, grid_size=(8, 4))
+    agent = QLearningAgent(learning=True, alpha=0.7, epsilon=1,batch_size=1)
+    env = Environment(control=agent, grid_size=(2,2))
     simulator = Simulator(env, update_delay=0.1, filename="qagent.csv")
     simulator.title = "Training Learning Q-Agent"
     for t in range(1, trials+1):
