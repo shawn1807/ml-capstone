@@ -115,8 +115,7 @@ class QLearningAgent(TrafficLightControl):
                     for i in range(0, len(q0), 2):
                         q0_ns = q0[i]
                         q0_ew = q0[i+1]
-                        maxQ = np.clip(np.max(q1[i:i+2]),-750,750)
-
+                        maxQ = np.max(q1[i:i+2])
                         #if reward is 0 means not taking this action
                         if r0[i] <= 0:
                             expected.append(q0_ns)

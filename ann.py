@@ -7,7 +7,6 @@ logger = logging.getLogger(__name__)
 
 
 def sigmoid(x):
-    x = np.clip(x, -750, 750)
     return 1.0 / (1.0 + np.exp(-x))
 
 
@@ -16,9 +15,7 @@ def cross_entropy(a, y):
 
 
 def quadratic(a, y):
-    a = np.clip(a, -750, 750)
-    y = np.clip(y, -750, 750)
-    return a - y
+    return (a - y).astype(float)
 
 
 class NeuronInitializer(object):
@@ -141,7 +138,7 @@ class Layer(object):
             n.propagate_error(e)
         # calculate prior layer error
         if self.prior is not None:
-            prior_errors = np.sum(np.array([n.weights * n.error_term for n in self.neurons]).transpose(), axis=1)
+            prior_errors = np.sum(np.array([n.weights * n.error_term for n in self.neurons], dtype=np.float64).transpose(), axis=1)
             self.prior.back_propagate(prior_errors)
 
     def update(self):
@@ -194,7 +191,7 @@ class OutputLayer(Layer):
 class Neuron(object):
 
     def __init__(self, weights, bias):
-        self.weights = weights
+        self.weights = np.array(weights, dtype= np.float64)
         self.bias = bias
         self.input = None
         self.output = None
