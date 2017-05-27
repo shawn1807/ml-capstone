@@ -37,7 +37,7 @@ class WeightsInitializer(NeuronInitializer):
 class QLearningAgent(TrafficLightControl):
     """ Q learning network agent"""
 
-    def __init__(self, period=2, learning=False, epsilon=0.7, alpha=0.5, batch_size=50, gamma=1):
+    def __init__(self, period=2, learning=False, epsilon=0.7, alpha=0.5, batch_size=10, gamma=1):
         super(QLearningAgent, self).__init__()
         self.period = period
         self.lights = []
@@ -66,7 +66,7 @@ class QLearningAgent(TrafficLightControl):
         self.model = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
         self.model.set_input_layer(len(self.env.roads))
         self.model.add_hidden_layer(len(self.env.roads), activation="relu")
-        self.model.set_output_layer(len(self.lights)*2, activation="identity")
+        self.model.set_output_layer(len(self.lights)*2, activation="linear")
         self.model.build()
         for i in range(0, len(self.lights)):
             self.lights[i].ns_neuron = self.model.output_layer.neurons[i]
@@ -160,11 +160,11 @@ class QLearningAgent(TrafficLightControl):
 
 
 def run():
-    trials = 5
-    cars = [1]
+    trials = 2
+    cars = [50,100]
     period = 50
     agent = QLearningAgent(learning=True, alpha=0.7, epsilon=1,batch_size=1)
-    env = Environment(control=agent, grid_size=(2,2))
+    env = Environment(control=agent, grid_size=(8,4))
     simulator = Simulator(env, update_delay=0.1, filename="qagent.csv")
     simulator.title = "Training Learning Q-Agent"
     for t in range(1, trials+1):
@@ -180,6 +180,7 @@ def run():
                             break
                 Car(env, pos)
             simulator.run(t, period)
+        agent.learning = False
     simulator.quit()
 
 if __name__ == '__main__':

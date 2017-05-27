@@ -7,6 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 def sigmoid(x):
+    x = np.clip(x, 750, -750)
     return 1.0 / (1.0 + np.exp(-x))
 
 
@@ -110,7 +111,7 @@ class Layer(object):
                         neuron = SigmoidNeuron(weights,bias)
                     elif self.activation == "relu":
                         neuron = ReluNeuron(weights,bias)
-                    elif self.activation == "identity":
+                    elif self.activation == "linear":
                         neuron = Neuron(weights,bias)
                     else:
                         raise ValueError("activation function [%s] not supported" % self.activation)
@@ -138,7 +139,7 @@ class Layer(object):
             n.propagate_error(e)
         # calculate prior layer error
         if self.prior is not None:
-            prior_errors = np.sum(np.array([n.weights * n.error_term for n in self.neurons], dtype=np.float64).transpose(), axis=1)
+            prior_errors = np.sum(np.array([n.weights * n.error_term for n in self.neurons], dtype=np.float32).transpose(), axis=1)
             self.prior.back_propagate(prior_errors)
 
     def update(self):
@@ -191,11 +192,12 @@ class OutputLayer(Layer):
 class Neuron(object):
 
     def __init__(self, weights, bias):
-        self.weights = np.array(weights, dtype= np.float64)
-        self.bias = bias
+        self.weights = np.array(weights, dtype=np.float32)
+        self.size = len(weights)
+        self.bias = np.float32(bias)
         self.input = None
         self.output = None
-        self.delta = np.zeros(len(weights))
+        self.delta = np.zeros(self.size)
         self.batch = 0
         self.error_term = 0
         self.errors = 0
@@ -214,9 +216,9 @@ class Neuron(object):
     def update(self, learning_rate):
         self.weights -= learning_rate * self.delta / self.batch
         self.bias -= learning_rate * self.errors / self.batch
-        self.delta = 0.0
+        self.delta = np.zeros(self.size)
         self.batch = 0
-        self.errors = 0.0
+        self.errors = 0
 
     def __str__(self):
         return "Neuron(%s, %s)" % (self.weights, self.bias)
@@ -245,6 +247,6 @@ class ReluNeuron(Neuron):
 
     def propagate_error(self, err):
         self.errors += err
-        self.error_term = 1 if err > 0 else 0
+        self.error_term = err * (1 if self.output > 0 else 0)
         self.delta += self.input * self.error_term
         self.batch += 1
