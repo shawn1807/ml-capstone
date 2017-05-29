@@ -36,17 +36,14 @@ class Simulator(object):
 
     def __init__(self, env, update_delay=0.5, display=True, title="", filename="data.csv"):
         self.title = title
-        self.datafile = filename
-        log_file = open(filename, 'wb')
-        self.logger = csv.DictWriter(log_file, fieldnames=["trial", "cars", "total_stall", "average", "score"])
-        self.logger.writeheader()
+        self.logger = None
+        self.reset_logger_file(filename)
         self.trial = 0
         self.env = env
         self.block_size = 120
         self.size = ((env.grid_size[0] + 1) * self.block_size, (env.grid_size[1]+2) * self.block_size)
         self.width, self.height = self.size
         self.road_width = 60
-
         self.bg_color = self.colors['gray']
         self.road_color = self.colors['black']
         self.line_color = self.colors['mustard']
@@ -57,7 +54,6 @@ class Simulator(object):
         self.current_time = 0.0
         self.last_updated = 0.0
         self.update_delay = update_delay  # duration between each step (in seconds)
-        self.loginfo = {}
         self.display = display
         if self.display:
             try:
@@ -86,6 +82,12 @@ class Simulator(object):
                 print "Simulator.__init__(): Error initializing GUI objects; display disabled.\n{}: {}".format(
                     e.__class__.__name__, e)
 
+    def reset_logger_file(self, filename="data.csv"):
+        log_file = open(filename, 'wb')
+        self.logger = csv.DictWriter(log_file, fieldnames=["trial", "cars", "stall", "tick", "score"])
+        self.logger.writeheader()
+
+
     def run(self, trial, period):
         self.trial = trial
         gameExit = False
@@ -101,10 +103,18 @@ class Simulator(object):
             self.screen.fill(self.bg_color)
             self.render()
             self.env.tick()
+            if self.logger is not None:
+                loginfo = {
+                    "trial": self.trial,
+                    "cars": self.env.number_of_car,
+                    "stall": self.env.stall,
+                    "tick": self.env.t,
+                    "score": round((self.env.number_of_car - self.env.stall)*1./self.env.number_of_car * 100., 2)
+                }
+                self.logger.writerow(loginfo)
             self.pygame.display.flip()
             self.pygame.time.delay(self.frame_delay)
-        if self.logger is not None:
-            self.logger.writerow(self.loginfo)
+
 
     def quit(self):
         """ When the GUI is enabled, this function will pause the simulation. """
@@ -188,13 +198,7 @@ class Simulator(object):
                              (300, 80))
         self.screen.blit(
             self.font50.render("Score: %s" % score, True, self.colors['magenta'], self.bg_color), (self.width - 300, self.height - 100))
-        self.loginfo = {
-            "trial" : self.trial,
-            "cars" : ncars,
-            "total_stall":self.env.totalStall,
-            "average": average,
-            "score" : score
-        }
+
 
     def pause(self):
         """ When the GUI is enabled, this function will pause the simulation. """
