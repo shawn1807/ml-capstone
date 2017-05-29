@@ -45,10 +45,22 @@ class LearningAgent(TrafficLightControl):
         self.lights.append(tl)
         return tl
 
+    def stop_learning(self):
+        self.learning = False
+
     def setup(self):
         self.model = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
         self.model.set_input_layer(len(self.env.roads))
-        self.model.add_hidden_layer(len(self.env.roads), activation="sigmoid")
+
+        """
+        self.model.set_output_layer(len(self.lights), activation="linear")
+        self.model.add_hidden_layer(len(self.env.roads), activation="relu") #50- 76
+        """
+        self.model.set_output_layer(len(self.lights), activation="linear")
+        self.model.add_hidden_layer(len(self.env.roads), activation="relu")
+        self.model.set_output_layer(len(self.lights), activation="linear")
+        self.model.set_output_layer(len(self.lights), activation="linear")
+        self.model.set_output_layer(len(self.lights), activation="linear")#try
         self.model.set_output_layer(len(self.lights), activation="sigmoid")
         self.model.build()
         self.model
@@ -106,13 +118,13 @@ class LearningAgent(TrafficLightControl):
 
 
 def run():
-    trials = 5
-    cars = [50]
-    period = 50
-    agent = LearningAgent(learning=True, alpha=0.5)
+    trials = 2
+    cars = [50, 100]
+    period = 30
+    agent = LearningAgent(learning=True, alpha=0.15)
     env = Environment(control=agent, grid_size=(8, 4))
-    simulator = Simulator(env, update_delay=0.1, filename="agent.csv")
-    simulator.title = "Training Learning Agent"
+    simulator = Simulator(env, update_delay=0.1, filename="ann_agent_training2.csv")
+    simulator.title = "Training ANN Agent"
     for t in range(1, trials+1):
         for ncar in cars:
             env.reset()
@@ -126,6 +138,23 @@ def run():
                             break
                 Car(env, pos)
             simulator.run(t, period)
+    #testing
+    agent.stop_learning()
+    simulator.title = "ANN Agent"
+    simulator.reset_logger_file("ann_agent_testing2.csv")
+    period = 5
+    for ncar in cars:
+        env.reset()
+        for i in range(1, ncar + 1):
+            pos = random.choice(env.roads.keys())
+            heading, obj = env.roads[pos]
+            if obj is not None:
+                """ find an empty space from start position"""
+                for pos, v in env.roads.iteritems():
+                    if v[1] is None:
+                        break
+            Car(env, pos)
+        simulator.run(t, period)
     simulator.quit()
 
 
