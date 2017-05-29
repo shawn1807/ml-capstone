@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 
 def sigmoid(x):
-    x = np.clip(x, 750, -750)
+
     return 1.0 / (1.0 + np.exp(-x))
 
 
