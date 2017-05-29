@@ -19,10 +19,10 @@ class NeuronTrafficLight(TrafficLight):
 
     def switch(self):
         diff = self.ns_neuron.output - self.ew_neuron.output
-        #Q value must at least great than 10 otherwise random choice one
-        if diff > 10:
+        #Q value must at least great than 0.25 otherwise random choice one
+        if diff > 0.25:
             self.open_way = self.NS
-        elif diff < -10:
+        elif diff < -0.25:
             self.open_way = self.NS
         else:
             self.open_way = random.choice([self.EW, self.NS])
@@ -66,7 +66,7 @@ class QLearningAgent(TrafficLightControl):
         self.model = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
         self.model.set_input_layer(len(self.env.roads))
         self.model.add_hidden_layer(len(self.env.roads), activation="relu")
-        self.model.set_output_layer(len(self.lights)*2, activation="linear")
+        self.model.set_output_layer(len(self.lights)*2, activation="sigmoid")
         self.model.build()
         for i in range(0, len(self.lights)):
             self.lights[i].ns_neuron = self.model.output_layer.neurons[i]
@@ -117,12 +117,14 @@ class QLearningAgent(TrafficLightControl):
                         q0_ew = q0[i+1]
                         maxQ = np.max(q1[i:i+2])
                         #if reward is 0 means not taking this action
-                        if r0[i] <= 0:
-                            expected.append(q0_ns)
-                            expected.append(r0[i+1] + (self.gamma * maxQ))
+                        if r0[i] == 0:
+                            expected.append(0.)
+                            r = np.max([1,(r0[i+1] + (self.gamma * maxQ)) / 100])
+                            expected.append(r)
                         else:
-                            expected.append(r0[i] + (self.gamma * maxQ))
-                            expected.append(q0_ew)
+                            r = np.max([1, (r0[i] + (self.gamma * maxQ)) / 100])
+                            expected.append(r)
+                            expected.append(0.)
                     self.model.back_propagate(expected)
                     self.model.update()
                     print "q0", q0
