@@ -104,12 +104,13 @@ class Simulator(object):
             self.render()
             self.env.tick()
             if self.logger is not None:
+                average = round(self.env.totalStall / (self.env.t * 1.0), 2)
                 loginfo = {
                     "trial": self.trial,
                     "cars": self.env.number_of_car,
                     "stall": self.env.stall,
                     "tick": self.env.t,
-                    "score": round((self.env.number_of_car - self.env.stall)*1./self.env.number_of_car * 100., 2)
+                    "score": round((self.env.number_of_car - average)*1./self.env.number_of_car * 100., 2)
                 }
                 self.logger.writerow(loginfo)
             self.pygame.display.flip()
