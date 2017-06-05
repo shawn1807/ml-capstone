@@ -70,15 +70,16 @@ class Navigator(object):
     def __init__(self, car, env):
         self.env = env
         self.car = car
-        self.heading = random.choice(env.roads[car.position][0])
+        self.direction = random.choice(env.roads[car.position][0])
+        self.heading = self.direction
 
     def navigate(self):
         direction, obj = self.env.roads[self.car.position]
-        mov = random.choice(direction)
-        self.heading = mov
-        if not self.env.control.allow(self.car.position, self.heading):
-            self.car.setStall()
-        return mov
+        self.direction = random.choice(direction)
+        if not self.env.control.allow(self.car.position, self.direction):
+            self.heading = (0, 0)
+        else:
+            self.heading = self.direction
 
 
 class Car(object):
@@ -92,21 +93,19 @@ class Car(object):
         self.navigator = Navigator(self, env)
         self.navigator.heading = random.choice(env.roads[position][0])
         env.roads[position] = (env.roads[position][0], self)
-        self.stall = False
+        self.state = 1 # 0: stall 1: moving
         self.mov = (0, 0)
 
     def step(self):
-        self.stall = False
-        self.mov = self.navigator.navigate()
-        if self.stall:
+        self.state = 1
+        self.navigator.navigate()
+        if self.navigator.heading == (0, 0):
+            self.state = 0
             return
-        self.env.act(self, self.mov)
+        self.env.act(self, self.navigator.heading)
 
-    def get_heading(self):
-        return self.navigator.heading
-
-    def setStall(self):
-        self.stall = True
+    def get_direction(self):
+        return self.navigator.direction
 
 
 class Environment(object):
@@ -182,25 +181,25 @@ class Environment(object):
             if type(obj) is Car:
                 self.number_of_car += 1
                 obj.step()
-                if obj.stall:
+                if obj.state == 0:
                     self.stall += 1
         self.totalStall += self.stall
         self.control.after_signal()
 
     def act(self, car, mov):
         way_point = self.roads[car.position][0]
-        next = (car.position[0] + mov[0], car.position[1] + mov[1])
+        next_pos = (car.position[0] + mov[0], car.position[1] + mov[1])
         """if run into boundary then reset position to other side"""
-        if self.bounds[0] > next[0] or next[0] > self.bounds[2]:
-            next = (abs(next[0] - self.bounds[2]), next[1])
-        elif self.bounds[1] > next[1] or next[1] > self.bounds[3]:
-            next = (next[0], abs(next[1] - self.bounds[3]))
-        direction, obj = self.roads[next]
+        if self.bounds[0] > next_pos[0] or next_pos[0] > self.bounds[2]:
+            next_pos = (abs(next_pos[0] - self.bounds[2]), next_pos[1])
+        elif self.bounds[1] > next_pos[1] or next_pos[1] > self.bounds[3]:
+            next_pos = (next_pos[0], abs(next_pos[1] - self.bounds[3]))
+        direction, obj = self.roads[next_pos]
         """ only update position when there is no car ahead"""
         if obj is None:
             self.roads[car.position] = (way_point, None)
-            self.roads[next] = (direction, car)
-            car.position = next
+            self.roads[next_pos] = (direction, car)
+            car.position = next_pos
         else:
-            car.setStall()
+            car.state = 0
 

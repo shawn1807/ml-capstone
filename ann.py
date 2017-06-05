@@ -30,9 +30,8 @@ class NeuronInitializer(object):
 
 class NeuralNetwork(object):
 
-    def __init__(self, epsilon=1.0, alpha=0.7,neuron_initializer=NeuronInitializer(), cost_func=quadratic):
+    def __init__(self, alpha=0.7, neuron_initializer=NeuronInitializer(), cost_func=quadratic):
         self.neuron_initializer = neuron_initializer
-        self.epsilon = epsilon
         self.alpha = alpha
         self.hidden_layers = None
         self.output_layer = None

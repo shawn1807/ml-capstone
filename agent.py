@@ -49,11 +49,9 @@ class LearningAgent(TrafficLightControl):
         self.learning = False
 
     def setup(self):
-        self.model = NeuralNetwork(epsilon=self.epsilon, alpha=self.alpha)
+        self.model = NeuralNetwork(alpha=self.alpha)
         self.model.set_input_layer(len(self.env.roads))
-        #self.model.add_hidden_layer(len(self.env.roads), activation="linear")#relu82
-        self.model.add_hidden_layer(len(self.env.roads), activation="relu")
-        #self.model.add_hidden_layer(len(self.env.roads), activation="relu")
+        self.model.add_hidden_layer(len(self.env.roads), activation="linear")
         self.model.set_output_layer(len(self.lights), activation="sigmoid")
         self.model.build()
         self.model
@@ -107,16 +105,16 @@ class LearningAgent(TrafficLightControl):
                     light.ew_vote += 1
                 else:
                     light.ns_vote += 1
-        return super(LearningAgent,self).allow(position,heading)
+        return super(LearningAgent, self).allow(position,heading)
 
 
 def run():
     trials = 2
     cars = [50, 100]
-    period = 30
+    period = 20
     agent = LearningAgent(learning=True, alpha=0.15)
     env = Environment(control=agent, grid_size=(8, 4))
-    simulator = Simulator(env, update_delay=0.1, filename="ann_agent_training.csv")
+    simulator = Simulator(env, update_delay=0.1, filename="ann_training_32L.csv")
     simulator.title = "Training ANN Agent"
     for t in range(1, trials+1):
         for ncar in cars:
@@ -134,7 +132,7 @@ def run():
     #testing
     agent.stop_learning()
     simulator.title = "ANN Agent"
-    simulator.reset_logger_file("ann_agent_testing.csv")
+    simulator.reset_logger_file("ann_testing_32L.csv")
     period = 5
     for ncar in cars:
         env.reset()

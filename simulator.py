@@ -182,7 +182,7 @@ class Simulator(object):
                     self.agent_sprite_size)
                 px = self.block_size / 2 + ((pos[0] - 1) * 30)
                 py = self.block_size + ((pos[1] - 1) * 30)
-                rotated_sprite = self.pygame.transform.rotate(_sprite, self.rotation[t.get_heading()])
+                rotated_sprite = self.pygame.transform.rotate(_sprite, self.rotation[t.get_direction()])
                 self.screen.blit(rotated_sprite, self.pygame.rect.Rect(px ,py ,self.agent_sprite_size[0], self.agent_sprite_size[1]))
 
         # * Overlays

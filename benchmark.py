@@ -30,8 +30,8 @@ class BenchmarkAgent(TrafficLightControl):
 
 
 def run():
-    trials = 100
-    cars = [10]
+    trials = 2
+    cars = [50, 100]
     period = 5
     agent = BenchmarkAgent(period=4)
     env = Environment(control=agent, grid_size=(8, 4))
@@ -49,8 +49,6 @@ def run():
                             break
                 Car(env, pos)
             simulator.run(t, period)
-    #simulator.pause()
-    #simulator.plot()
     simulator.quit()
 
 
